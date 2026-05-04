@@ -1,0 +1,165 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function hasRole(role) {
+      return signedIn() && request.auth.token.minnexRole == role;
+    }
+
+    function isBiz() {
+      return hasRole("biz");
+    }
+
+    function isGo() {
+      return hasRole("go");
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function safePaymentPayload(data) {
+      return !("card" in data)
+        && !("upi" in data)
+        && !("pan" in data)
+        && !("aadhaar" in data)
+        && (!("payment" in data) || data.payment.sensitivePaymentDataStored == false);
+    }
+
+    function immutableOrderKeys() {
+      return [
+        "userId",
+        "customerRef",
+        "shopId",
+        "shopName",
+        "itemId",
+        "itemName",
+        "itemPrice",
+        "price",
+        "billing",
+        "settlement",
+        "payment",
+        "paymentSecurity",
+        "createdAt",
+        "createdAtMs"
+      ];
+    }
+
+    match /orders/{orderId} {
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.appAccess.createdBy == "customer"
+        && safePaymentPayload(request.resource.data);
+
+      allow read: if signedIn()
+        && (
+          resource.data.userId == request.auth.uid
+          || isBiz()
+          || (isGo() && (
+            resource.data.status == "preparing"
+            || resource.data.agentId == request.auth.uid
+          ))
+        );
+
+      allow update: if signedIn()
+        && safePaymentPayload(request.resource.data)
+        && (
+          isBiz()
+          || (
+            resource.data.userId == request.auth.uid
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(immutableOrderKeys())
+          )
+          || (
+            isGo()
+            && (
+              resource.data.agentId == request.auth.uid
+              || (
+                resource.data.agentId == ""
+                && request.resource.data.agentId == request.auth.uid
+                && resource.data.status == "preparing"
+                && request.resource.data.status == "agent assigned"
+              )
+            )
+          )
+        );
+
+      allow delete: if false;
+    }
+
+    match /orderDeliveryDetails/{orderId} {
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.readableBy.bizApp == false;
+
+      allow read: if signedIn()
+        && (
+          resource.data.userId == request.auth.uid
+          || resource.data.assignedAgentId == request.auth.uid
+        );
+
+      allow update: if signedIn()
+        && (
+          resource.data.userId == request.auth.uid
+          || (
+            isBiz()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              "assignedAgentId",
+              "assignedAgentName",
+              "releasedAt"
+            ])
+          )
+          || (
+            isGo()
+            && resource.data.assignedAgentId == ""
+            && request.resource.data.assignedAgentId == request.auth.uid
+          )
+          || (
+            isGo()
+            && resource.data.assignedAgentId == request.auth.uid
+            && request.resource.data.assignedAgentId == request.auth.uid
+          )
+        );
+
+      allow delete: if false;
+    }
+
+    match /restaurants/{restaurantId} {
+      allow read: if signedIn();
+      allow write: if isBiz();
+    }
+
+    match /agents/{agentId} {
+      allow create: if isGo()
+        && agentId == request.auth.uid
+        && request.resource.data.verification.fullIdStored == false;
+
+      allow read: if isBiz() || (isGo() && agentId == request.auth.uid);
+
+      allow update: if (
+        isBiz()
+        || (
+          isGo()
+          && agentId == request.auth.uid
+          && request.resource.data.verification.fullIdStored == false
+        )
+      );
+
+      allow delete: if false;
+    }
+
+    match /supportTickets/{ticketId} {
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow read: if isBiz() || resource.data.userId == request.auth.uid;
+      allow update: if isBiz();
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
