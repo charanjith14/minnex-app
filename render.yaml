@@ -6,7 +6,7 @@ services:
     branch: main
     rootDir: minnex
     buildCommand: npm ci && npm run build
-    staticPublishPath: ./dist
+    staticPublishPath: ./minnex/dist
     autoDeployTrigger: commit
     domains:
       - www.minnex.in
