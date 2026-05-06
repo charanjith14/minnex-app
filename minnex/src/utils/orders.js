@@ -4,7 +4,24 @@ import { db } from "../firebase/config";
 export const createOrder = async (user, shop, deliveryDetails, payment = {}, bill = {}) => {
   const createdAtMs = Date.now();
   const customerTotal = Number(bill.customerTotal || shop.price || 0);
-  const paymentStatus = payment.mode === "razorpay" ? "client_confirmed" : "demo_confirmed";
+  const onlinePaymentModes = ["razorpay", "upi", "card"];
+  const isOnlinePayment = onlinePaymentModes.includes(payment.mode) || payment.provider === "razorpay";
+  const paymentStatus = isOnlinePayment ? "client_confirmed" : "demo_confirmed";
+  const quantity = Number(bill.quantity || 1);
+  const orderItems = Array.isArray(bill.items) && bill.items.length
+    ? bill.items
+    : [
+        {
+          id: shop.item?.id || shop.id,
+          name: shop.item?.name || shop.name,
+          description: shop.item?.description || "",
+          price: Number(shop.item?.price || shop.price || 0),
+          quantity,
+          total: Number(bill.subtotal || shop.price || 0),
+          shopId: shop.id,
+          shopName: shop.name
+        }
+      ];
 
   const orderRef = await addDoc(collection(db, "orders"), {
     backendContractVersion: "2026-05-launch",
@@ -31,6 +48,8 @@ export const createOrder = async (user, shop, deliveryDetails, payment = {}, bil
     itemId: shop.item?.id || shop.id,
     itemName: shop.item?.name || shop.name,
     itemPrice: Number(shop.item?.price || shop.price || 0),
+    itemQuantity: quantity,
+    items: orderItems,
     price: customerTotal,
     image: shop.image,
     distanceKm: Number(bill.distanceKm || shop.distanceKm || 0),
@@ -79,7 +98,7 @@ export const createOrder = async (user, shop, deliveryDetails, payment = {}, bil
     paymentId: payment.paymentId || "",
     paymentMode: payment.mode || "demo",
     payment: {
-      provider: payment.mode === "razorpay" ? "razorpay" : "demo",
+      provider: payment.provider || (payment.mode === "upi" ? "upi" : payment.mode === "razorpay" ? "razorpay" : "demo"),
       providerPaymentId: payment.paymentId || "",
       providerOrderId: payment.providerOrderId || "",
       status: paymentStatus,
@@ -90,7 +109,12 @@ export const createOrder = async (user, shop, deliveryDetails, payment = {}, bil
       sensitivePaymentDataStored: false
     },
     paymentSecurity: {
-      checkoutProvider: payment.mode === "razorpay" ? "razorpay_checkout" : "demo_checkout",
+      checkoutProvider:
+        payment.provider === "razorpay"
+          ? "razorpay_checkout"
+          : payment.mode === "upi"
+            ? "upi_checkout"
+            : "demo_checkout",
       cardDataStoredByMinnex: false,
       fullUpiOrCardDetailsStored: false,
       serverWebhookVerificationRequired: payment.mode === "razorpay"

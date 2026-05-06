@@ -167,6 +167,10 @@ const SHOPS = [
 const FILTERS = ["Recommended", "Offers", "Express", "Pure veg", "Healthy", "Top rated", "Near you"];
 const TIP_OPTIONS = [0, 20, 40, 60];
 const FOOD_MOODS = ["All", "Kerala", "Biryani", "Dosa", "Burgers", "Healthy"];
+const PAYMENT_OPTIONS = [
+  { id: "upi", label: "UPI" },
+  { id: "card", label: "Card" }
+];
 const SCHEDULE_SLOTS = [
   { id: "asap", label: "ASAP" },
   { id: "lunch", label: "Lunch 12-2" },
@@ -182,6 +186,12 @@ const OFFER_RAIL = [
   { title: "Pocket meals", copy: "Meals under Rs 149 in 25 min" },
   { title: "Gold hour", copy: "Extra rewards on prepaid orders" },
   { title: "Kerala picks", copy: "Sadya, appam, stew and fish curry" }
+];
+const CONTACT_BOT_TOPICS = [
+  { id: "late", label: "Late order", message: "My order is late" },
+  { id: "payment", label: "Payment issue", message: "I have a payment issue" },
+  { id: "missing", label: "Missing item", message: "Something is missing from my order" },
+  { id: "address", label: "Address change", message: "I need to change my address" }
 ];
 const DELIVERY_PROFILE_VERSION = "v2";
 const DEFAULT_DELIVERY_PROFILES = [
@@ -249,16 +259,19 @@ const getAddressPreview = (profile) => {
   return address.length > 74 ? `${address.slice(0, 74)}...` : address;
 };
 
-const createDemoPayment = (mode = "demo") => ({
+const createDemoPayment = (mode = "upi") => ({
   paymentId: `demo-pay-${Date.now()}`,
+  provider: mode === "upi" ? "upi" : "demo",
   providerOrderId: "",
   mode,
   verificationStatus: "demo_payment",
   paidAt: Date.now()
 });
 
-const calculateBill = (shop, tip = 0, priorityMatch = false) => {
-  const subtotal = Number(shop.item?.price || shop.price || 0);
+const calculateBill = (shop, tip = 0, priorityMatch = false, quantity = 1) => {
+  const itemPrice = Number(shop.item?.price || shop.price || 0);
+  const itemQuantity = Math.max(1, Number(quantity) || 1);
+  const subtotal = itemPrice * itemQuantity;
   const deliveryFee = Math.round(25 + Number(shop.distanceKm || 0) * 8);
   const platformFee = subtotal >= 400 ? 15 : 9;
   const priorityMatchFee = priorityMatch ? 12 : 0;
@@ -280,6 +293,20 @@ const calculateBill = (shop, tip = 0, priorityMatch = false) => {
     priorityMatchFee,
     tip: Number(tip || 0),
     customerTotal,
+    unitPrice: itemPrice,
+    quantity: itemQuantity,
+    items: [
+      {
+        id: shop.item?.id || shop.id,
+        name: shop.item?.name || shop.name,
+        description: shop.item?.description || "",
+        price: itemPrice,
+        quantity: itemQuantity,
+        total: subtotal,
+        shopId: shop.id,
+        shopName: shop.name
+      }
+    ],
     commissionRate: Number(shop.commissionRate || 0.2),
     restaurantCommission,
     restaurantSettlement,
@@ -330,17 +357,17 @@ const getEffectiveShop = (shop, profile = {}) => {
   };
 };
 
-const collectPayment = async (shop, bill, user) => {
+const collectPayment = async (shop, bill, user, paymentMode = "upi") => {
   const key = appEnv.razorpayKeyId;
 
   if (!key || key.includes("your_")) {
-    return createDemoPayment();
+    return createDemoPayment(paymentMode);
   }
 
   const loaded = await loadRazorpay();
 
   if (!loaded || !window.Razorpay) {
-    return createDemoPayment("demo-checkout-unavailable");
+    return createDemoPayment(paymentMode);
   }
 
   return new Promise((resolve, reject) => {
@@ -352,6 +379,12 @@ const collectPayment = async (shop, bill, user) => {
       currency: "INR",
       name: "Minnex",
       description: shop.name,
+      method: {
+        upi: paymentMode === "upi",
+        card: paymentMode === "card",
+        netbanking: paymentMode !== "upi",
+        wallet: paymentMode !== "upi"
+      },
       prefill: {
         contact: user.phoneNumber || ""
       },
@@ -359,8 +392,9 @@ const collectPayment = async (shop, bill, user) => {
         settled = true;
         resolve({
           paymentId: response.razorpay_payment_id || `razorpay-${Date.now()}`,
+          provider: "razorpay",
           providerOrderId: response.razorpay_order_id || "",
-          mode: "razorpay",
+          mode: paymentMode,
           verificationStatus: response.razorpay_signature ? "server_verification_required" : "client_confirmed",
           paidAt: Date.now()
         });
@@ -400,7 +434,29 @@ const getCurrentLocation = () => {
   });
 };
 
-export default function Home({ user, goTrack }) {
+const getHumanBotReply = (message) => {
+  const text = String(message || "").toLowerCase();
+
+  if (text.includes("pay") || text.includes("upi") || text.includes("card") || text.includes("money")) {
+    return "I understand. Payment glitches are stressful. If money was debited, please do not pay again right away. Wait about 2 minutes, then check whether the order appeared. If it did not, keep the UPI reference or card transaction ID ready so support can verify it.";
+  }
+
+  if (text.includes("missing") || text.includes("wrong") || text.includes("item") || text.includes("food")) {
+    return "That is frustrating, especially after waiting for food. Once the order is delivered, keep a clear photo of the package and the items you received. I can help you raise it as a restaurant verification issue from Contact us.";
+  }
+
+  if (text.includes("address") || text.includes("location") || text.includes("landmark")) {
+    return "No problem. If you have not ordered yet, update Saved addresses from the menu before checkout. If the order is already placed, add the clearest landmark in the notes and use tracking to coordinate with the delivery partner.";
+  }
+
+  if (text.includes("late") || text.includes("where") || text.includes("track") || text.includes("delay")) {
+    return "I get it. Waiting without clarity is annoying. After checkout, tracking will open automatically and show the current order step. If the ETA is already crossed, come back here and I will help mark it for delay review.";
+  }
+
+  return "I am here with you. Tell me what happened in one line, like payment failed, order is late, wrong item, or address change. I will keep the next step simple.";
+};
+
+export default function Home({ user, goTrack, onOrderPlaced, cartRequest = 0 }) {
   const [activeFilter, setActiveFilter] = useState(FILTERS[0]);
   const [selectedMood, setSelectedMood] = useState("All");
   const [selectedFoodId, setSelectedFoodId] = useState("all");
@@ -408,6 +464,17 @@ export default function Home({ user, goTrack }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [orderingId, setOrderingId] = useState(null);
   const [reviewShopId, setReviewShopId] = useState("");
+  const [cart, setCart] = useState({ shopId: "", quantities: {} });
+  const [addressOpen, setAddressOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [contactBotOpen, setContactBotOpen] = useState(false);
+  const [botMessages, setBotMessages] = useState([
+    {
+      role: "ai",
+      text: "Hey, I am Minnex AI. Tell me what went wrong, or tap one of the common issues below. I will help you sort it out."
+    }
+  ]);
+  const [paymentMode, setPaymentMode] = useState("upi");
   const [message, setMessage] = useState("");
   const [locating, setLocating] = useState(false);
   const [restaurantProfiles, setRestaurantProfiles] = useState({});
@@ -621,6 +688,87 @@ export default function Home({ user, goTrack }) {
     [effectiveShops, reviewShopId]
   );
 
+  const cartItems = useMemo(
+    () =>
+      Object.entries(cart.quantities)
+        .map(([shopId, quantity]) => {
+          const shop = effectiveShops.find((item) => item.id === shopId);
+          return shop ? { shop, quantity } : null;
+        })
+        .filter(Boolean),
+    [cart.quantities, effectiveShops]
+  );
+  const cartQuantity = cartItems.reduce((total, item) => total + item.quantity, 0);
+  const cartShop = cartItems[0]?.shop || null;
+  const cartBill = cartShop ? calculateBill(cartShop, tip, priorityMatch, cartQuantity) : null;
+
+  const getCartQuantity = (shopId) => cart.quantities[shopId] || 0;
+
+  const setShopQuantity = (shop, nextQuantity) => {
+    if (!shop.isOpen) {
+      setMessage(`${shop.name} is unavailable: ${shop.availabilityReason}.`);
+      return;
+    }
+
+    const quantity = Math.max(0, Number(nextQuantity) || 0);
+
+    setCart(
+      quantity
+        ? {
+            shopId: shop.id,
+            quantities: { [shop.id]: quantity }
+          }
+        : { shopId: "", quantities: {} }
+    );
+    setMessage("");
+  };
+
+  const openCartReview = () => {
+    if (!cartShop) {
+      setMessage("Add food to cart first.");
+      return;
+    }
+
+    if (deliveryDetails.phone.length !== 10 || !deliveryDetails.address.trim()) {
+      setMessage("Add delivery address and contact.");
+      setAddressOpen(true);
+      return;
+    }
+
+    setReviewShopId(cartShop.id);
+  };
+
+  const openContactBot = () => {
+    setMenuOpen(false);
+    setContactBotOpen(true);
+  };
+
+  const askBot = (topic) => {
+    const selectedTopic = CONTACT_BOT_TOPICS.find((item) => item.id === topic) || CONTACT_BOT_TOPICS[0];
+
+    setBotMessages((current) => [
+      ...current,
+      { role: "user", text: selectedTopic.message },
+      { role: "ai", text: getHumanBotReply(selectedTopic.id) }
+    ]);
+  };
+
+  const sendBotMessage = (text) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+
+    setBotMessages((current) => [
+      ...current,
+      { role: "user", text: trimmed },
+      { role: "ai", text: getHumanBotReply(trimmed) }
+    ]);
+  };
+
+  useEffect(() => {
+    if (!cartRequest) return;
+    openCartReview();
+  }, [cartRequest]);
+
   const openCheckoutReview = (shop) => {
     if (!shop.isOpen) {
       setMessage(`${shop.name} is unavailable: ${shop.availabilityReason}.`);
@@ -661,8 +809,9 @@ export default function Home({ user, goTrack }) {
     setMessage("Confirming payment...");
 
     try {
-      const bill = calculateBill(shop, tip, priorityMatch);
-      const payment = await collectPayment(shop, bill, user);
+      const quantity = getCartQuantity(shop.id) || 1;
+      const bill = calculateBill(shop, tip, priorityMatch, quantity);
+      const payment = await collectPayment(shop, bill, user, paymentMode);
       const slot = SCHEDULE_SLOTS.find((item) => item.id === scheduleSlot) || SCHEDULE_SLOTS[0];
       const mode = SERVICE_MODES.find((item) => item.id === activeMode) || SERVICE_MODES[0];
       const enhancedDeliveryDetails = {
@@ -684,7 +833,8 @@ export default function Home({ user, goTrack }) {
       setMessage("Payment confirmed. Sending order to restaurant.");
       await createOrder(user, shop, enhancedDeliveryDetails, payment, bill);
       setReviewShopId("");
-      goTrack();
+      setCart({ shopId: "", quantities: {} });
+      (onOrderPlaced || goTrack)?.();
     } catch (error) {
       setMessage(error.message || "Could not place and pay for this order.");
     } finally {
@@ -693,127 +843,88 @@ export default function Home({ user, goTrack }) {
   };
 
   return (
-    <section className="page page-order food-home">
-      <DeliverySwitchPanel
-        profiles={deliveryProfiles}
-        activeProfile={deliveryDetails}
-        activeProfileId={activeProfileId}
-        onSelect={setActiveProfileId}
-        onAdd={addDeliveryProfile}
-      />
+    <section className="page page-order mobile-storefront">
+      <section className="swiggy-stage">
+        <div className="mobile-location-row">
+          <button className="location-button" onClick={() => setAddressOpen(true)} type="button">
+            <strong>{deliveryDetails.label || "Home"}</strong>
+            <span>{getAddressPreview(deliveryDetails)}</span>
+          </button>
+          <button className="menu-top-button" onClick={() => setMenuOpen(true)} type="button" aria-label="Open menu">
+            <span />
+            <span />
+            <span />
+          </button>
+        </div>
 
-      <section className="food-hero">
-        <div className="food-hero-copy">
-          <p className="eyebrow">Minnex now</p>
-          <h1>Food delivery that feels fast before you even order.</h1>
-          <label className="food-search">
+        <div className="mobile-service-tabs" aria-label="Minnex services">
+          {SERVICE_MODES.slice(0, 3).map((mode) => (
+            <button
+              key={mode.id}
+              className={activeMode === mode.id ? "is-active" : ""}
+              onClick={() => setActiveMode(mode.id)}
+              type="button"
+            >
+              <strong>{mode.title.replace(" delivery", "")}</strong>
+              <span>{mode.id === "express" ? "18 mins" : mode.id === "party" ? "Meals" : "Food"}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="mobile-search-row">
+          <label className="mobile-search">
             <span>Search</span>
             <input
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search biryani, appam, burger, healthy bowls"
+              placeholder="Search for biryani"
             />
           </label>
-          <div className="hero-badges">
-            <span>Live ETA</span>
-            <span>Smart matching</span>
-            <span>No-contact ready</span>
-          </div>
-        </div>
-        <aside className="food-hero-card">
-          <span>Fast lane</span>
-          <strong>20 min</strong>
-          <p>Express kitchens, prepaid checkout, and partner-ready pickups.</p>
-        </aside>
-      </section>
-
-      <section className="service-grid" aria-label="Minnex services">
-        {SERVICE_MODES.map((mode) => (
           <button
-            key={mode.id}
-            className={`service-tile ${activeMode === mode.id ? "is-active" : ""}`}
-            onClick={() => setActiveMode(mode.id)}
+            className={`veg-switch ${activeFilter === "Pure veg" ? "is-active" : ""}`}
+            onClick={() => setActiveFilter(activeFilter === "Pure veg" ? FILTERS[0] : "Pure veg")}
             type="button"
           >
-            <strong>{mode.title}</strong>
-            <span>{mode.copy}</span>
+            VEG
           </button>
-        ))}
-      </section>
-
-      <section className="food-picker-panel" aria-label="Pick food first">
-        <div className="food-section-head compact-head">
-          <div>
-            <p className="eyebrow">Choose food</p>
-            <h2>Food first, then the shops that have it.</h2>
-          </div>
-          <span>{foodCatalog.length} foods</span>
         </div>
-        <div className="food-card-rail">
-          <button
-            className={`food-card-choice food-card-all ${selectedFoodId === "all" ? "is-active" : ""}`}
-            onClick={() => setSelectedFoodId("all")}
-            type="button"
-          >
-            <strong>All food</strong>
-            <span>{effectiveShops.filter((shop) => shop.isOpen).length} shops open</span>
-          </button>
-          {foodCatalog.map((food) => (
-            <button
-              key={food.id}
-              className={`food-card-choice ${selectedFoodId === food.id ? "is-active" : ""}`}
-              onClick={() => setSelectedFoodId(food.id)}
-              style={{ "--food-accent": food.accent }}
-              type="button"
-            >
-              <img src={food.image} alt={food.name} />
-              <span>{food.openCount ? `${food.openCount} open` : "Unavailable"}</span>
-              <strong>{food.name}</strong>
-              <small>{food.description}</small>
-            </button>
+
+        <div className="deal-rail" aria-label="Deals">
+          {OFFER_RAIL.map((offer) => (
+            <article key={offer.title} className="deal-card">
+              <span>{offer.title}</span>
+              <strong>{offer.copy}</strong>
+            </article>
           ))}
         </div>
       </section>
 
-      <section className="offer-rail" aria-label="Offers and collections">
-        {OFFER_RAIL.map((offer) => (
-          <article key={offer.title} className="offer-card">
-            <span>{offer.title}</span>
-            <strong>{offer.copy}</strong>
-          </article>
+      <section className="category-rail" aria-label="Food categories">
+        <button
+          className={`category-pill ${selectedFoodId === "all" ? "is-active" : ""}`}
+          onClick={() => setSelectedFoodId("all")}
+          type="button"
+        >
+          <span>All</span>
+        </button>
+        {foodCatalog.map((food) => (
+          <button
+            key={food.id}
+            className={`category-pill ${selectedFoodId === food.id ? "is-active" : ""}`}
+            onClick={() => setSelectedFoodId(food.id)}
+            type="button"
+          >
+            <img src={food.image} alt="" />
+            <span>{food.name.split(" ").slice(0, 2).join(" ")}</span>
+          </button>
         ))}
       </section>
 
-      <div className="food-section-head">
-        <div>
-          <p className="eyebrow">Available shops</p>
-          <h2>
-            {selectedFoodId === "all"
-              ? "Shops near you"
-              : foodCatalog.find((food) => food.id === selectedFoodId)?.name || "Selected food"}
-          </h2>
-        </div>
-        <span>{visibleShops.length} options</span>
-      </div>
-
-      <div className="mood-row" aria-label="Food moods">
-        {FOOD_MOODS.map((mood) => (
-          <button
-            key={mood}
-            className={`mood-chip ${selectedMood === mood ? "is-active" : ""}`}
-            onClick={() => setSelectedMood(mood)}
-            type="button"
-          >
-            {mood}
-          </button>
-        ))}
-      </div>
-
-      <div className="filter-row" aria-label="Restaurant filters">
-        {FILTERS.map((filter) => (
+      <div className="mobile-filter-row" aria-label="Restaurant filters">
+        {FILTERS.slice(0, 5).map((filter) => (
           <button
             key={filter}
-            className={`filter-chip ${activeFilter === filter ? "is-active" : ""}`}
+            className={activeFilter === filter ? "is-active" : ""}
             onClick={() => setActiveFilter(filter)}
             type="button"
           >
@@ -822,161 +933,53 @@ export default function Home({ user, goTrack }) {
         ))}
       </div>
 
-      {message && <p className="notice notice-error">{message}</p>}
+      {message && <p className="notice notice-error mobile-notice">{message}</p>}
 
-      <section className="delivery-panel delivery-panel-modern">
-        <div className="delivery-panel-head">
-          <div>
-            <p className="eyebrow">Delivery setup</p>
-            <h2>Faster checkout, clearer handoff, fewer support issues.</h2>
-          </div>
-          <button
-            className="secondary-button"
-            onClick={useCurrentLocation}
-            disabled={locating}
-            type="button"
-          >
-            {locating ? "Locating..." : deliveryDetails.location ? "Update location" : "Use current location"}
-          </button>
-        </div>
+      <div className="mobile-section-head">
+        <h2>Recommended for you</h2>
+        <span>{visibleShops.length} options</span>
+      </div>
 
-        <div className="delivery-form">
-          <label>
-            <span>Name</span>
-            <input
-              value={deliveryDetails.name}
-              onChange={(event) => updateDeliveryDetails("name", event.target.value)}
-              placeholder="Receiver name"
-            />
-          </label>
-          <label>
-            <span>Contact</span>
-            <input
-              value={deliveryDetails.phone}
-              onChange={(event) => updateDeliveryDetails("phone", event.target.value)}
-              inputMode="numeric"
-              placeholder="9876543210"
-            />
-          </label>
-          <label className="delivery-address-field">
-            <span>Address</span>
-            <textarea
-              value={deliveryDetails.address}
-              onChange={(event) => updateDeliveryDetails("address", event.target.value)}
-              placeholder="House, street, area, landmark"
-              rows="3"
-            />
-          </label>
-          <label>
-            <span>Notes</span>
-            <input
-              value={deliveryDetails.notes}
-              onChange={(event) => updateDeliveryDetails("notes", event.target.value)}
-              placeholder="Gate code, landmark, handoff note"
-            />
-          </label>
-        </div>
-
-        <div className="checkout-preferences">
-          <label className="preference-card">
-            <input type="checkbox" checked={noContact} onChange={(event) => setNoContact(event.target.checked)} />
-            <span>No-contact drop</span>
-          </label>
-          <label className="preference-card">
-            <input type="checkbox" checked={groupOrder} onChange={(event) => setGroupOrder(event.target.checked)} />
-            <span>Group order mode</span>
-          </label>
-          <label className="preference-card">
-            <input
-              type="checkbox"
-              checked={priorityMatch}
-              onChange={(event) => setPriorityMatch(event.target.checked)}
-            />
-            <span>Priority partner match</span>
-          </label>
-        </div>
-
-        <div className="schedule-row" aria-label="Schedule order">
-          {SCHEDULE_SLOTS.map((slot) => (
-            <button
-              key={slot.id}
-              className={`filter-chip ${scheduleSlot === slot.id ? "is-active" : ""}`}
-              onClick={() => setScheduleSlot(slot.id)}
-              type="button"
-            >
-              {slot.label}
-            </button>
-          ))}
-        </div>
-
-        {deliveryDetails.location && (
-          <p className="privacy-note">
-            Location saved: {deliveryDetails.location.lat.toFixed(4)}, {deliveryDetails.location.lng.toFixed(4)}
-          </p>
-        )}
-
-        <div className="tip-row" aria-label="Delivery tip">
-          <span>Tip goes 100% to delivery partner</span>
-          <div>
-            {TIP_OPTIONS.map((amount) => (
-              <button
-                key={amount}
-                className={`filter-chip ${tip === amount ? "is-active" : ""}`}
-                onClick={() => setTip(amount)}
-                type="button"
-              >
-                {amount ? `Rs ${amount}` : "No tip"}
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <div className="shop-list modern-shop-list">
+      <div className="restaurant-feed">
         {visibleShops.map((shop) => {
-          const bill = calculateBill(shop, tip, priorityMatch);
+          const quantity = getCartQuantity(shop.id);
+          const bill = calculateBill(shop, tip, priorityMatch, Math.max(quantity, 1));
 
           return (
-            <article className={`shop-card modern-shop-card ${shop.isOpen ? "" : "is-closed"}`} key={shop.id}>
-              <div className="shop-image-wrap">
-                <img src={shop.image} alt={shop.name} className="shop-image" />
-                <div className="shop-image-badges">
-                  <span>{shop.deliveryMode}</span>
-                  {shop.veg && <span>Pure veg</span>}
-                </div>
+            <article className={`feed-card ${shop.isOpen ? "" : "is-closed"}`} key={shop.id}>
+              <div className="feed-image-wrap">
+                <img src={shop.image} alt={shop.name} />
+                <span>{shop.offer}</span>
               </div>
-              <div className="shop-content">
-                <div className="shop-card-title-row">
-                  <div>
-                    <p className="shop-cuisine">{shop.cuisine}</p>
-                    <h2>{shop.name}</h2>
+              <div className="feed-card-body">
+                <div>
+                  <div className="feed-title-row">
+                    <h3>{shop.name}</h3>
+                    <span className="rating-pill">{shop.rating}</span>
                   </div>
-                  <span className="rating-pill">{shop.rating}</span>
+                  <p>{shop.cuisine}</p>
+                  <small>
+                    {shop.eta} - {shop.distanceKm.toFixed(1)} km - {shop.availabilityReason}
+                  </small>
                 </div>
-                <p className="menu-item-line">{shop.item.name} - {shop.item.description}</p>
-                <div className="shop-meta">
-                  <span>{shop.eta}</span>
-                  <span>{shop.distanceKm.toFixed(1)} km</span>
-                  <span>{shop.prepTime}</span>
-                  <span>{shop.availabilityReason}</span>
+                <div className="menu-order-row">
+                  <div>
+                    <strong>{shop.item.name}</strong>
+                    <span>Rs {shop.item.price}</span>
+                  </div>
+                  <QuantityControl
+                    quantity={quantity}
+                    disabled={!shop.isOpen}
+                    onDecrease={() => setShopQuantity(shop, quantity - 1)}
+                    onIncrease={() => setShopQuantity(shop, quantity + 1)}
+                  />
                 </div>
-                <div className="offer-strip">
-                  <span>{shop.offer}</span>
-                </div>
-                <div className="final-price-strip">
-                  <span>Final price</span>
-                  <strong>Rs {bill.customerTotal}</strong>
-                  <small>Full split appears on the payment review.</small>
-                </div>
-                <button
-                  className="primary-button"
-                  onClick={() => openCheckoutReview(shop)}
-                  disabled={orderingId === shop.id || !shop.isOpen}
-                  style={{ "--button-accent": shop.accent }}
-                  type="button"
-                >
-                  {orderingId === shop.id ? "Processing..." : shop.isOpen ? "Review payment" : "Unavailable"}
-                </button>
+                {quantity > 0 && (
+                  <div className="line-total">
+                    <span>{quantity} selected</span>
+                    <strong>Rs {bill.subtotal}</strong>
+                  </div>
+                )}
               </div>
             </article>
           );
@@ -986,21 +989,376 @@ export default function Home({ user, goTrack }) {
       {!visibleShops.length && (
         <div className="empty-state compact-empty">
           <h1>No matches</h1>
-          <p>Try another search, mood, or service mode.</p>
+          <p>Try another search or filter.</p>
         </div>
+      )}
+
+      {cartShop && cartBill && (
+        <CartBar
+          shop={cartShop}
+          quantity={cartQuantity}
+          bill={cartBill}
+          onOpen={openCartReview}
+          onClear={() => setShopQuantity(cartShop, 0)}
+        />
+      )}
+
+      {addressOpen && (
+        <AddressSheet
+          profiles={deliveryProfiles}
+          activeProfile={deliveryDetails}
+          activeProfileId={activeProfileId}
+          locating={locating}
+          noContact={noContact}
+          groupOrder={groupOrder}
+          priorityMatch={priorityMatch}
+          scheduleSlot={scheduleSlot}
+          tip={tip}
+          onSelect={setActiveProfileId}
+          onAdd={addDeliveryProfile}
+          onClose={() => setAddressOpen(false)}
+          onFieldChange={updateDeliveryDetails}
+          onLocate={useCurrentLocation}
+          onNoContactChange={setNoContact}
+          onGroupOrderChange={setGroupOrder}
+          onPriorityMatchChange={setPriorityMatch}
+          onScheduleChange={setScheduleSlot}
+          onTipChange={setTip}
+        />
+      )}
+
+      {menuOpen && (
+        <MobileMenuSheet
+          cartQuantity={cartQuantity}
+          onClose={() => setMenuOpen(false)}
+          onAddress={() => {
+            setMenuOpen(false);
+            setAddressOpen(true);
+          }}
+          onCart={() => {
+            setMenuOpen(false);
+            openCartReview();
+          }}
+          onContact={openContactBot}
+        />
+      )}
+
+      {contactBotOpen && (
+        <ContactBotSheet
+          messages={botMessages}
+          onAsk={askBot}
+          onSend={sendBotMessage}
+          onClose={() => setContactBotOpen(false)}
+        />
       )}
 
       {reviewShop && (
         <CheckoutReview
           shop={reviewShop}
-          bill={calculateBill(reviewShop, tip, priorityMatch)}
+          bill={calculateBill(reviewShop, tip, priorityMatch, getCartQuantity(reviewShop.id) || 1)}
           deliveryDetails={deliveryDetails}
+          quantity={getCartQuantity(reviewShop.id) || 1}
+          paymentMode={paymentMode}
           busy={orderingId === reviewShop.id}
+          onPaymentModeChange={setPaymentMode}
           onClose={() => setReviewShopId("")}
           onConfirm={() => handleOrder(reviewShop)}
         />
       )}
     </section>
+  );
+}
+
+function MobileMenuSheet({ cartQuantity, onClose, onAddress, onCart, onContact }) {
+  return (
+    <div className="menu-sheet-backdrop" role="presentation" onClick={onClose}>
+      <section
+        className="mobile-menu-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Minnex menu"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="sheet-handle" />
+        <div className="mobile-menu-head">
+          <div>
+            <p className="eyebrow">Menu</p>
+            <h2>Minnex</h2>
+          </div>
+          <button className="secondary-button" onClick={onClose} type="button">
+            Close
+          </button>
+        </div>
+        <div className="mobile-menu-options">
+          <button onClick={onAddress} type="button">
+            <span className="menu-option-icon menu-option-address" aria-hidden="true" />
+            <strong>Saved addresses</strong>
+          </button>
+          <button onClick={onCart} type="button">
+            <span className="cart-glyph" aria-hidden="true" />
+            <strong>{cartQuantity ? `View cart (${cartQuantity})` : "View cart"}</strong>
+          </button>
+          <button onClick={onContact} type="button">
+            <span className="menu-option-icon menu-option-support" aria-hidden="true" />
+            <strong>Contact us</strong>
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ContactBotSheet({ messages, onAsk, onSend, onClose }) {
+  const [draft, setDraft] = useState("");
+
+  const submitDraft = () => {
+    const nextDraft = draft.trim();
+    if (!nextDraft) return;
+    onSend(nextDraft);
+    setDraft("");
+  };
+
+  return (
+    <div className="menu-sheet-backdrop" role="presentation" onClick={onClose}>
+      <section
+        className="contact-bot-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Minnex AI contact support"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="sheet-handle" />
+        <div className="mobile-menu-head">
+          <div>
+            <p className="eyebrow">Contact us</p>
+            <h2>Minnex AI</h2>
+          </div>
+          <button className="secondary-button" onClick={onClose} type="button">
+            Close
+          </button>
+        </div>
+        <div className="bot-chat">
+          {messages.map((message, index) => (
+            <div
+              className={`bot-bubble ${message.role === "user" ? "bot-bubble-user" : "bot-bubble-ai"}`}
+              key={`${message.role}-${index}`}
+            >
+              <span>{message.role === "user" ? "You" : "Minnex AI"}</span>
+              <p>{message.text}</p>
+            </div>
+          ))}
+        </div>
+        <div className="bot-topic-grid" aria-label="Choose issue">
+          {CONTACT_BOT_TOPICS.map((topic) => (
+            <button key={topic.id} onClick={() => onAsk(topic.id)} type="button">
+              {topic.label}
+            </button>
+          ))}
+        </div>
+        <div className="bot-composer">
+          <input
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                submitDraft();
+              }
+            }}
+            placeholder="Type your issue"
+          />
+          <button onClick={submitDraft} type="button">
+            Send
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function QuantityControl({ quantity, disabled, onDecrease, onIncrease }) {
+  if (!quantity) {
+    return (
+      <button className="add-button" onClick={onIncrease} disabled={disabled} type="button">
+        {disabled ? "Closed" : "ADD"}
+      </button>
+    );
+  }
+
+  return (
+    <div className="quantity-control" aria-label="Food quantity">
+      <button onClick={onDecrease} type="button" aria-label="Decrease quantity">
+        -
+      </button>
+      <strong>{quantity}</strong>
+      <button onClick={onIncrease} type="button" aria-label="Increase quantity">
+        +
+      </button>
+    </div>
+  );
+}
+
+function CartBar({ shop, quantity, bill, onOpen, onClear }) {
+  return (
+    <aside className="floating-cart" aria-label="Cart summary">
+      <div>
+        <strong>{shop.name}</strong>
+        <span>
+          {quantity} {quantity === 1 ? "item" : "items"} - Rs {bill.customerTotal}
+        </span>
+      </div>
+      <button className="view-cart-button" onClick={onOpen} type="button">
+        <span className="cart-glyph" aria-hidden="true" />
+        View Cart
+      </button>
+      <button className="cart-clear-button" onClick={onClear} type="button" aria-label="Clear cart">
+        x
+      </button>
+    </aside>
+  );
+}
+
+function AddressSheet({
+  profiles,
+  activeProfile,
+  activeProfileId,
+  locating,
+  noContact,
+  groupOrder,
+  priorityMatch,
+  scheduleSlot,
+  tip,
+  onSelect,
+  onAdd,
+  onClose,
+  onFieldChange,
+  onLocate,
+  onNoContactChange,
+  onGroupOrderChange,
+  onPriorityMatchChange,
+  onScheduleChange,
+  onTipChange
+}) {
+  return (
+    <div className="checkout-backdrop address-backdrop" role="presentation">
+      <section className="address-sheet" role="dialog" aria-modal="true" aria-label="Delivery address">
+        <div className="sheet-handle" />
+        <div className="checkout-review-head">
+          <div>
+            <p className="eyebrow">Saved address</p>
+            <h2>{activeProfile?.label || "Home"}</h2>
+          </div>
+          <button className="secondary-button" onClick={onClose} type="button">
+            Done
+          </button>
+        </div>
+
+        <div className="delivery-switch-actions address-picker">
+          <label>
+            <span>Name and address</span>
+            <select value={activeProfileId} onChange={(event) => onSelect(event.target.value)}>
+              {profiles.map((profile) => (
+                <option key={profile.id} value={profile.id}>
+                  {profile.label} - {profile.name?.trim() || "Customer"}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button className="secondary-button" onClick={onAdd} type="button">
+            Add
+          </button>
+        </div>
+
+        <div className="delivery-form compact-delivery-form">
+          <label>
+            <span>Name</span>
+            <input
+              value={activeProfile.name}
+              onChange={(event) => onFieldChange("name", event.target.value)}
+              placeholder="Receiver name"
+            />
+          </label>
+          <label>
+            <span>Contact</span>
+            <input
+              value={activeProfile.phone}
+              onChange={(event) => onFieldChange("phone", event.target.value)}
+              inputMode="numeric"
+              placeholder="9876543210"
+            />
+          </label>
+          <label className="delivery-address-field">
+            <span>Address</span>
+            <textarea
+              value={activeProfile.address}
+              onChange={(event) => onFieldChange("address", event.target.value)}
+              placeholder="House, street, area, landmark"
+              rows="3"
+            />
+          </label>
+          <label>
+            <span>Notes</span>
+            <input
+              value={activeProfile.notes}
+              onChange={(event) => onFieldChange("notes", event.target.value)}
+              placeholder="Gate code or landmark"
+            />
+          </label>
+        </div>
+
+        <button className="location-enable-button" onClick={onLocate} disabled={locating} type="button">
+          {locating ? "Locating..." : activeProfile.location ? "Update location" : "Enable location"}
+        </button>
+
+        <div className="checkout-preferences">
+          <label className="preference-card">
+            <input type="checkbox" checked={noContact} onChange={(event) => onNoContactChange(event.target.checked)} />
+            <span>No-contact</span>
+          </label>
+          <label className="preference-card">
+            <input type="checkbox" checked={groupOrder} onChange={(event) => onGroupOrderChange(event.target.checked)} />
+            <span>Group order</span>
+          </label>
+          <label className="preference-card">
+            <input
+              type="checkbox"
+              checked={priorityMatch}
+              onChange={(event) => onPriorityMatchChange(event.target.checked)}
+            />
+            <span>Priority</span>
+          </label>
+        </div>
+
+        <div className="schedule-row" aria-label="Schedule order">
+          {SCHEDULE_SLOTS.map((slot) => (
+            <button
+              key={slot.id}
+              className={`filter-chip ${scheduleSlot === slot.id ? "is-active" : ""}`}
+              onClick={() => onScheduleChange(slot.id)}
+              type="button"
+            >
+              {slot.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="tip-row" aria-label="Delivery tip">
+          <span>Delivery tip</span>
+          <div>
+            {TIP_OPTIONS.map((amount) => (
+              <button
+                key={amount}
+                className={`filter-chip ${tip === amount ? "is-active" : ""}`}
+                onClick={() => onTipChange(amount)}
+                type="button"
+              >
+                {amount ? `Rs ${amount}` : "No tip"}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -1032,14 +1390,24 @@ function DeliverySwitchPanel({ profiles, activeProfile, activeProfileId, onSelec
   );
 }
 
-function CheckoutReview({ shop, bill, deliveryDetails, busy, onClose, onConfirm }) {
+function CheckoutReview({
+  shop,
+  bill,
+  deliveryDetails,
+  quantity,
+  paymentMode,
+  busy,
+  onPaymentModeChange,
+  onClose,
+  onConfirm
+}) {
   return (
     <div className="checkout-backdrop" role="presentation">
       <section className="checkout-review" role="dialog" aria-modal="true" aria-label="Payment review">
         <div className="checkout-review-head">
           <div>
-            <p className="eyebrow">Payment review</p>
-            <h2>{shop.item.name}</h2>
+            <p className="eyebrow">Cart</p>
+            <h2>Final list</h2>
             <span>{shop.name}</span>
           </div>
           <button className="secondary-button" onClick={onClose} disabled={busy} type="button">
@@ -1047,10 +1415,34 @@ function CheckoutReview({ shop, bill, deliveryDetails, busy, onClose, onConfirm 
           </button>
         </div>
 
+        <div className="cart-review-item">
+          <img src={shop.image} alt={shop.item.name} />
+          <div>
+            <strong>{shop.item.name}</strong>
+            <span>{shop.item.description}</span>
+          </div>
+          <b>
+            {quantity} x Rs {bill.unitPrice}
+          </b>
+        </div>
+
         <div className="checkout-address-card">
           <span>Deliver to</span>
           <strong>{deliveryDetails.name?.trim() || "Customer"}</strong>
           <p>{deliveryDetails.address}</p>
+        </div>
+
+        <div className="payment-options" aria-label="Payment option">
+          {PAYMENT_OPTIONS.map((option) => (
+            <button
+              key={option.id}
+              className={paymentMode === option.id ? "is-active" : ""}
+              onClick={() => onPaymentModeChange(option.id)}
+              type="button"
+            >
+              {option.label}
+            </button>
+          ))}
         </div>
 
         <div className="checkout-split">
@@ -1062,12 +1454,8 @@ function CheckoutReview({ shop, bill, deliveryDetails, busy, onClose, onConfirm 
           <BillLine label="Final amount" value={bill.customerTotal} strong />
         </div>
 
-        <p className="secure-payment-note">
-          Minnex does not store card, UPI, PAN, or Aadhaar full numbers in the app.
-        </p>
-
         <button className="primary-button checkout-pay-button" onClick={onConfirm} disabled={busy} type="button">
-          {busy ? "Processing..." : `Pay Rs ${bill.customerTotal}`}
+          {busy ? "Processing..." : `Pay by ${paymentMode.toUpperCase()} Rs ${bill.customerTotal}`}
         </button>
       </section>
     </div>

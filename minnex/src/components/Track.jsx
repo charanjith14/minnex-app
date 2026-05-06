@@ -262,6 +262,8 @@ export default function Track({ user }) {
         <div className="price-pill">Rs {order.price}</div>
       </article>
 
+      <OrderItemsPanel order={order} />
+
       <div className="steps" aria-label="Order progress">
         {STATUS_STEPS.map((step, index) => (
           <div className={`step ${index <= activeStep ? "is-complete" : ""}`} key={step}>
@@ -273,20 +275,22 @@ export default function Track({ user }) {
 
       <Map location={order.location} />
 
-      <article className="payment-panel">
-        <div>
-          <p className="eyebrow">Checkout</p>
-          <h2>{order.paid ? "Payment confirmed" : "Payment pending"}</h2>
-        </div>
-        <button
-          className="primary-button payment-button"
-          onClick={handlePay}
-          disabled={paying || order.paid}
-          type="button"
-        >
-          {order.paid ? "Done" : paying ? "Opening..." : `Pay Rs ${order.price}`}
-        </button>
-      </article>
+      {!order.paid && (
+        <article className="payment-panel">
+          <div>
+            <p className="eyebrow">Payment</p>
+            <h2>Payment pending</h2>
+          </div>
+          <button
+            className="primary-button payment-button"
+            onClick={handlePay}
+            disabled={paying}
+            type="button"
+          >
+            {paying ? "Opening..." : `Pay Rs ${order.price}`}
+          </button>
+        </article>
+      )}
 
       {paymentMessage && <p className="notice">{paymentMessage}</p>}
 
@@ -311,6 +315,38 @@ export default function Track({ user }) {
         />
       )}
     </section>
+  );
+}
+
+function OrderItemsPanel({ order }) {
+  const items = Array.isArray(order.items) && order.items.length
+    ? order.items
+    : [
+        {
+          id: order.itemId || order.id,
+          name: order.itemName || order.shopName,
+          quantity: order.itemQuantity || 1,
+          total: order.itemPrice || order.price
+        }
+      ];
+
+  return (
+    <article className="order-items-panel">
+      <div>
+        <p className="eyebrow">Cart</p>
+        <h2>{items.reduce((total, item) => total + Number(item.quantity || 1), 0)} items</h2>
+      </div>
+      <div className="track-item-list">
+        {items.map((item) => (
+          <div className="track-item-row" key={item.id || item.name}>
+            <span>
+              {Number(item.quantity || 1)} x {item.name}
+            </span>
+            <strong>Rs {item.total ?? Number(item.price || 0) * Number(item.quantity || 1)}</strong>
+          </div>
+        ))}
+      </div>
+    </article>
   );
 }
 

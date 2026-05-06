@@ -20,6 +20,36 @@ const GO_INSIGHTS = [
   { label: "Safe route", value: "Lit streets", detail: "Route hints prefer main roads" },
   { label: "Batching", value: "Smart", detail: "Avoids cold-food double pickups" }
 ];
+const MENU_OPTIONS = [
+  "Profile",
+  "Past orders",
+  "Feedbacks",
+  "Contact us",
+  "Settings"
+];
+
+const MENU_CONTENT = {
+  Profile: {
+    title: "Profile",
+    copy: "Manage your Go partner display name, verification status, and payout identity."
+  },
+  "Past orders": {
+    title: "Past orders",
+    copy: "Completed deliveries and earnings are tracked in your shift overview and delivery history."
+  },
+  Feedbacks: {
+    title: "Feedbacks",
+    copy: "Delivery feedback from completed orders helps Minnex Biz monitor partner quality."
+  },
+  "Contact us": {
+    title: "Contact us",
+    copy: "Use support escalation during an active delivery for pickup, route, or customer handoff issues."
+  },
+  Settings: {
+    title: "Settings",
+    copy: "Control location sharing, route preferences, verification, and delivery availability."
+  }
+};
 
 const FALLBACK_ROUTE = [
   { lat: 17.6868, lng: 83.2185 },
@@ -95,6 +125,7 @@ export default function AgentApp({ user }) {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState("");
   const [message, setMessage] = useState("");
+  const [menuView, setMenuView] = useState("");
   const [autoShare, setAutoShare] = useState(false);
   const [agentId] = useState(() => user.uid || getAgentId());
   const [agentName, setAgentName] = useState(
@@ -162,6 +193,7 @@ export default function AgentApp({ user }) {
   );
 
   const activeOrder = myOrders[0] || null;
+  const menuContent = MENU_CONTENT[menuView];
   const verificationStatus = agentProfile?.verification?.status || "not_submitted";
   const canAcceptOrders = verificationStatus === "approved";
   const earnings = useMemo(() => {
@@ -426,6 +458,11 @@ export default function AgentApp({ user }) {
             <div className="menu-panel">
               <span>{user.phoneNumber || "Go signed in"}</span>
               <span>Go app only</span>
+              {MENU_OPTIONS.map((option) => (
+                <button key={option} onClick={() => setMenuView(option)} type="button">
+                  {option}
+                </button>
+              ))}
               <button onClick={() => auth.signOut()} type="button">
                 Logout
               </button>
@@ -568,6 +605,36 @@ export default function AgentApp({ user }) {
           </div>
         </section>
       </main>
+
+      {menuContent && (
+        <MenuInfoPanel
+          title={menuContent.title}
+          copy={menuContent.copy}
+          account={user.phoneNumber || user.email || agentName || "Go signed in"}
+          onClose={() => setMenuView("")}
+        />
+      )}
+    </div>
+  );
+}
+
+function MenuInfoPanel({ title, copy, account, onClose }) {
+  return (
+    <div className="menu-info-backdrop" role="presentation">
+      <section className="menu-info-panel" role="dialog" aria-modal="true" aria-label={title}>
+        <div>
+          <p className="eyebrow">Menu</p>
+          <h2>{title}</h2>
+          <p>{copy}</p>
+        </div>
+        <div className="menu-info-account">
+          <span>Account</span>
+          <strong>{account}</strong>
+        </div>
+        <button className="primary-button" onClick={onClose} type="button">
+          Done
+        </button>
+      </section>
     </div>
   );
 }

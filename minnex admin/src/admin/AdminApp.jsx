@@ -63,6 +63,36 @@ const RESTAURANT_CATALOG = [
     schedule: { openHour: 8, closeHour: 22 }
   }
 ];
+const MENU_OPTIONS = [
+  "Profile",
+  "Past orders",
+  "Feedbacks",
+  "Contact us",
+  "Settings"
+];
+
+const MENU_CONTENT = {
+  Profile: {
+    title: "Profile",
+    copy: "Manage the Minnex Biz operator profile, restaurant access, and approval identity."
+  },
+  "Past orders": {
+    title: "Past orders",
+    copy: "Review completed and rejected orders from the order desk using the status filters."
+  },
+  Feedbacks: {
+    title: "Feedbacks",
+    copy: "Customer food, restaurant, and delivery ratings are collected here after delivered orders."
+  },
+  "Contact us": {
+    title: "Contact us",
+    copy: "Use the AI support queue for customer issues and escalation tracking tied to each order."
+  },
+  Settings: {
+    title: "Settings",
+    copy: "Control restaurant hours, stock, partner verification, payment review, and support policies."
+  }
+};
 
 const toMillis = (value) => {
   if (!value) return 0;
@@ -128,6 +158,7 @@ export default function AdminApp({ user }) {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState("");
   const [message, setMessage] = useState("");
+  const [menuView, setMenuView] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedId, setSelectedId] = useState("");
   const [selectedRestaurantId, setSelectedRestaurantId] = useState(RESTAURANT_CATALOG[0].id);
@@ -524,6 +555,7 @@ export default function AdminApp({ user }) {
   const selectedRestaurantProfile = selectedRestaurant
     ? getProfile(selectedRestaurant, restaurantProfiles)
     : null;
+  const menuContent = MENU_CONTENT[menuView];
 
   return (
     <div className="app-shell admin-shell">
@@ -543,6 +575,11 @@ export default function AdminApp({ user }) {
             <div className="menu-panel">
               <span>{user.phoneNumber || "Biz signed in"}</span>
               <span>Biz app only</span>
+              {MENU_OPTIONS.map((option) => (
+                <button key={option} onClick={() => setMenuView(option)} type="button">
+                  {option}
+                </button>
+              ))}
               <button onClick={() => auth.signOut()} type="button">
                 Logout
               </button>
@@ -764,6 +801,15 @@ export default function AdminApp({ user }) {
           </div>
         </section>
       </main>
+
+      {menuContent && (
+        <MenuInfoPanel
+          title={menuContent.title}
+          copy={menuContent.copy}
+          account={user.phoneNumber || user.email || "Biz signed in"}
+          onClose={() => setMenuView("")}
+        />
+      )}
     </div>
   );
 }
@@ -773,6 +819,27 @@ function Metric({ label, value }) {
     <div className="admin-metric">
       <span>{label}</span>
       <strong>{value}</strong>
+    </div>
+  );
+}
+
+function MenuInfoPanel({ title, copy, account, onClose }) {
+  return (
+    <div className="menu-info-backdrop" role="presentation">
+      <section className="menu-info-panel" role="dialog" aria-modal="true" aria-label={title}>
+        <div>
+          <p className="eyebrow">Menu</p>
+          <h2>{title}</h2>
+          <p>{copy}</p>
+        </div>
+        <div className="menu-info-account">
+          <span>Account</span>
+          <strong>{account}</strong>
+        </div>
+        <button className="primary-button" onClick={onClose} type="button">
+          Done
+        </button>
+      </section>
     </div>
   );
 }

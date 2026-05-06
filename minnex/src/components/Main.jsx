@@ -4,13 +4,18 @@ import Track from "./Track.jsx";
 import { auth } from "../firebase/config";
 import MinnexLogo from "./MinnexLogo.jsx";
 
-const TABS = [
-  { id: "home", label: "Order" },
-  { id: "track", label: "Track" }
-];
-
 export default function Main({ user }) {
   const [activeTab, setActiveTab] = useState("home");
+  const [cartRequest, setCartRequest] = useState(0);
+
+  const openTrackAfterOrder = () => {
+    setActiveTab("track");
+  };
+
+  const openCart = () => {
+    setActiveTab("home");
+    setCartRequest((request) => request + 1);
+  };
 
   return (
     <div className="app-shell">
@@ -27,22 +32,20 @@ export default function Main({ user }) {
 
         <div className="top-bar-actions">
           <div className="view-switch" aria-label="Minnex views">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                className={activeTab === tab.id ? "is-active" : ""}
-                onClick={() => setActiveTab(tab.id)}
-                type="button"
-              >
-                {tab.label}
-              </button>
-            ))}
+            <button onClick={openCart} type="button">
+              <span className="cart-glyph" aria-hidden="true" />
+              Cart
+            </button>
           </div>
           <details className="menu-popover">
-            <summary className="menu-trigger">Menu</summary>
+            <summary className="menu-trigger" aria-label="Open account menu">
+              Account
+            </summary>
             <div className="menu-panel">
               <span>{user.phoneNumber || user.email || "Signed in"}</span>
-              <span>Customer app only</span>
+              <button onClick={() => setActiveTab("home")} type="button">
+                Food
+              </button>
               <button onClick={() => auth.signOut()} type="button">
                 Logout
               </button>
@@ -53,25 +56,16 @@ export default function Main({ user }) {
 
       <main className="app-content">
         {activeTab === "home" ? (
-          <Home user={user} goTrack={() => setActiveTab("track")} />
+          <Home
+            user={user}
+            goTrack={openTrackAfterOrder}
+            onOrderPlaced={openTrackAfterOrder}
+            cartRequest={cartRequest}
+          />
         ) : (
           <Track user={user} />
         )}
       </main>
-
-      <nav className="bottom-nav" aria-label="Primary navigation">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            className={`nav-button ${activeTab === tab.id ? "is-active" : ""}`}
-            onClick={() => setActiveTab(tab.id)}
-            type="button"
-          >
-            <span className="nav-dot" />
-            {tab.label}
-          </button>
-        ))}
-      </nav>
     </div>
   );
 }
