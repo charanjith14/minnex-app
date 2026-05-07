@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { collection, onSnapshot, query } from "firebase/firestore";
+import { addDoc, collection, onSnapshot, query, serverTimestamp } from "firebase/firestore";
 import { appEnv } from "./env";
 import { db } from "./firebase/config";
 import { createOrder } from "./utils/orders";
@@ -166,7 +166,7 @@ const SHOPS = [
 
 const FILTERS = ["Recommended", "Offers", "Express", "Pure veg", "Healthy", "Top rated", "Near you"];
 const TIP_OPTIONS = [0, 20, 40, 60];
-const FOOD_MOODS = ["All", "Kerala", "Biryani", "Dosa", "Burgers", "Healthy"];
+const FOOD_MOODS = ["All", "Comfort", "Healthy", "Protein", "Local", "Trending"];
 const PAYMENT_OPTIONS = [
   { id: "upi", label: "UPI" },
   { id: "card", label: "Card" }
@@ -187,6 +187,110 @@ const OFFER_RAIL = [
   { title: "Gold hour", copy: "Extra rewards on prepaid orders" },
   { title: "Kerala picks", copy: "Sadya, appam, stew and fish curry" }
 ];
+const CUSTOMER_PROMISES = [
+  { title: "Price locked", copy: "No hidden charge after checkout" },
+  { title: "Trust score", copy: "Photos, hygiene, tamper seal" },
+  { title: "AI support", copy: "Human escalation in 30 sec" },
+  { title: "Wallet rewards", copy: "Cashback on every prepaid order" }
+];
+const SHOP_STRATEGY_PROFILES = {
+  s1: {
+    trustScore: 94,
+    hygieneRating: "A",
+    freshness: "Packed within 7 min",
+    customerPhotos: 42,
+    verifiedReviews: 318,
+    liveKitchen: true,
+    nutrition: "720 kcal",
+    aiMoods: ["Comfort", "Trending"],
+    trendSignal: "#2 burger nearby",
+    hyperlocalType: "Cloud kitchen",
+    priceBenchmark: 349,
+    cashbackRate: 0.05,
+    etaConfidence: "92% ETA confidence",
+    ecoMode: "Hot-bag batching only"
+  },
+  s2: {
+    trustScore: 98,
+    hygieneRating: "A+",
+    freshness: "Stew batch logged",
+    customerPhotos: 67,
+    verifiedReviews: 442,
+    liveKitchen: true,
+    nutrition: "510 kcal",
+    aiMoods: ["Healthy", "Local"],
+    trendSignal: "Breakfast favorite",
+    hyperlocalType: "Local restaurant",
+    priceBenchmark: 260,
+    cashbackRate: 0.04,
+    etaConfidence: "95% ETA confidence",
+    ecoMode: "EV preferred"
+  },
+  s3: {
+    trustScore: 93,
+    hygieneRating: "A",
+    freshness: "Tandoor live batch",
+    customerPhotos: 35,
+    verifiedReviews: 276,
+    liveKitchen: false,
+    nutrition: "680 kcal",
+    aiMoods: ["Protein", "Comfort"],
+    trendSignal: "Family thali pick",
+    hyperlocalType: "Restaurant partner",
+    priceBenchmark: 389,
+    cashbackRate: 0.04,
+    etaConfidence: "89% ETA confidence",
+    ecoMode: "Grouped if same block"
+  },
+  s4: {
+    trustScore: 97,
+    hygieneRating: "A+",
+    freshness: "Fish curry fresh batch",
+    customerPhotos: 58,
+    verifiedReviews: 401,
+    liveKitchen: true,
+    nutrition: "780 kcal",
+    aiMoods: ["Local", "Trending"],
+    trendSignal: "Kerala lunch surge",
+    hyperlocalType: "Family kitchen",
+    priceBenchmark: 449,
+    cashbackRate: 0.05,
+    etaConfidence: "88% ETA confidence",
+    ecoMode: "EV route eligible"
+  },
+  s5: {
+    trustScore: 91,
+    hygieneRating: "A",
+    freshness: "Dum seal checked",
+    customerPhotos: 49,
+    verifiedReviews: 365,
+    liveKitchen: false,
+    nutrition: "840 kcal",
+    aiMoods: ["Comfort", "Trending"],
+    trendSignal: "Night cravings",
+    hyperlocalType: "Popular kitchen",
+    priceBenchmark: 379,
+    cashbackRate: 0.04,
+    etaConfidence: "90% ETA confidence",
+    ecoMode: "No cold-food batching"
+  },
+  s6: {
+    trustScore: 96,
+    hygieneRating: "A",
+    freshness: "Greens prepped today",
+    customerPhotos: 31,
+    verifiedReviews: 224,
+    liveKitchen: false,
+    nutrition: "430 kcal",
+    aiMoods: ["Healthy", "Protein"],
+    trendSignal: "Gym crowd repeat",
+    hyperlocalType: "Healthy studio",
+    priceBenchmark: 329,
+    cashbackRate: 0.05,
+    etaConfidence: "94% ETA confidence",
+    ecoMode: "EV preferred"
+  }
+};
 const CONTACT_BOT_TOPICS = [
   { id: "late", label: "Late order", message: "My order is late" },
   { id: "payment", label: "Payment issue", message: "I have a payment issue" },
@@ -280,10 +384,33 @@ const calculateBill = (shop, tip = 0, priorityMatch = false, quantity = 1) => {
   const restaurantSettlement = subtotal - restaurantCommission;
   const agentBasePay = 35;
   const distancePay = Math.round(Number(shop.distanceKm || 0) * 9);
-  const agentTotal = agentBasePay + distancePay + surgePay + Number(tip || 0) + priorityMatchFee;
+  const fuelAdjustment = Math.round(Number(shop.distanceKm || 0) * 2);
+  const waitingCompensation = shop.isPeakHour ? 12 : 6;
+  const insuranceContribution = 3;
+  const agentTotal =
+    agentBasePay +
+    distancePay +
+    surgePay +
+    fuelAdjustment +
+    waitingCompensation +
+    insuranceContribution +
+    Number(tip || 0) +
+    priorityMatchFee;
   const platformRevenue =
-    restaurantCommission + platformFee + deliveryFee + priorityMatchFee - agentBasePay - distancePay - surgePay;
+    restaurantCommission +
+    platformFee +
+    deliveryFee +
+    priorityMatchFee -
+    agentBasePay -
+    distancePay -
+    surgePay -
+    fuelAdjustment -
+    waitingCompensation -
+    insuranceContribution;
   const customerTotal = subtotal + deliveryFee + platformFee + priorityMatchFee + Number(tip || 0);
+  const marketBenchmark = Math.round(Number(shop.priceBenchmark || itemPrice * 1.12) * itemQuantity);
+  const savingsVsMarket = Math.max(0, marketBenchmark - subtotal);
+  const walletCashback = Math.max(5, Math.round(customerTotal * Number(shop.cashbackRate || 0.04)));
 
   return {
     subtotal,
@@ -293,6 +420,11 @@ const calculateBill = (shop, tip = 0, priorityMatch = false, quantity = 1) => {
     priorityMatchFee,
     tip: Number(tip || 0),
     customerTotal,
+    marketBenchmark,
+    savingsVsMarket,
+    walletCashback,
+    priceLockId: `lock-${shop.id}-${Date.now()}`,
+    feeTransparency: "Food, delivery, platform, priority, and tip are fixed before payment.",
     unitPrice: itemPrice,
     quantity: itemQuantity,
     items: [
@@ -313,6 +445,9 @@ const calculateBill = (shop, tip = 0, priorityMatch = false, quantity = 1) => {
     agentBasePay,
     distancePay,
     surgePay,
+    fuelAdjustment,
+    waitingCompensation,
+    insuranceContribution,
     agentTotal,
     platformRevenue,
     distanceKm: Number(shop.distanceKm || 0)
@@ -330,6 +465,7 @@ const isWithinHours = (schedule) => {
 };
 
 const getEffectiveShop = (shop, profile = {}) => {
+  const strategyProfile = SHOP_STRATEGY_PROFILES[shop.id] || {};
   const schedule = profile.schedule || shop.schedule;
   const isPaused = Boolean(profile.isPaused);
   const isOpenByHours = isWithinHours(schedule);
@@ -346,6 +482,7 @@ const getEffectiveShop = (shop, profile = {}) => {
 
   return {
     ...shop,
+    ...strategyProfile,
     rating: profile.rating || shop.rating,
     schedule,
     isPaused,
@@ -631,7 +768,12 @@ export default function Home({ user, goTrack, onOrderPlaced, cartRequest = 0 }) 
     }
 
     if (normalizedMood !== "all") {
-      shops = shops.filter((shop) => shop.tags.some((tag) => tag.toLowerCase().includes(normalizedMood)));
+      shops = shops.filter((shop) =>
+        [shop.cuisine, shop.item.name, ...shop.tags, ...(shop.aiMoods || [])]
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedMood)
+      );
     }
 
     if (normalizedSearch) {
@@ -743,25 +885,61 @@ export default function Home({ user, goTrack, onOrderPlaced, cartRequest = 0 }) 
     setContactBotOpen(true);
   };
 
+  const createSupportTicket = async ({ topic, issueMessage, aiResolution }) => {
+    try {
+      await addDoc(collection(db, "supportTickets"), {
+        title: topic,
+        userId: user.uid,
+        customerRef: `customer-${user.uid.slice(0, 6)}`,
+        channel: "minnex_ai_chat",
+        status: "ai_triaged",
+        message: issueMessage,
+        aiResolution,
+        escalation: "human_escalation_30_seconds",
+        humanEscalationSlaSeconds: 30,
+        autoRefundEligible: /late|payment|missing|wrong|refund|money/i.test(issueMessage),
+        regionalLanguageReady: true,
+        voiceSupportReady: true,
+        createdAtMs: Date.now(),
+        createdAt: serverTimestamp()
+      });
+    } catch {
+      setMessage("AI reply sent. Support queue sync will retry when the connection is ready.");
+    }
+  };
+
   const askBot = (topic) => {
     const selectedTopic = CONTACT_BOT_TOPICS.find((item) => item.id === topic) || CONTACT_BOT_TOPICS[0];
+    const aiResolution = getHumanBotReply(selectedTopic.id);
 
     setBotMessages((current) => [
       ...current,
       { role: "user", text: selectedTopic.message },
-      { role: "ai", text: getHumanBotReply(selectedTopic.id) }
+      { role: "ai", text: aiResolution }
     ]);
+    void createSupportTicket({
+      topic: selectedTopic.label,
+      issueMessage: selectedTopic.message,
+      aiResolution
+    });
   };
 
   const sendBotMessage = (text) => {
     const trimmed = text.trim();
     if (!trimmed) return;
 
+    const aiResolution = getHumanBotReply(trimmed);
+
     setBotMessages((current) => [
       ...current,
       { role: "user", text: trimmed },
-      { role: "ai", text: getHumanBotReply(trimmed) }
+      { role: "ai", text: aiResolution }
     ]);
+    void createSupportTicket({
+      topic: "Customer message",
+      issueMessage: trimmed,
+      aiResolution
+    });
   };
 
   useEffect(() => {
@@ -897,6 +1075,15 @@ export default function Home({ user, goTrack, onOrderPlaced, cartRequest = 0 }) 
             </article>
           ))}
         </div>
+
+        <div className="strategy-promise-grid" aria-label="Minnex trust promises">
+          {CUSTOMER_PROMISES.map((promise) => (
+            <article key={promise.title}>
+              <span>{promise.title}</span>
+              <strong>{promise.copy}</strong>
+            </article>
+          ))}
+        </div>
       </section>
 
       <section className="category-rail" aria-label="Food categories">
@@ -933,6 +1120,19 @@ export default function Home({ user, goTrack, onOrderPlaced, cartRequest = 0 }) 
         ))}
       </div>
 
+      <div className="ai-mood-row" aria-label="AI mood suggestions">
+        {FOOD_MOODS.map((mood) => (
+          <button
+            key={mood}
+            className={selectedMood === mood ? "is-active" : ""}
+            onClick={() => setSelectedMood(mood)}
+            type="button"
+          >
+            {mood === "All" ? "AI picks" : mood}
+          </button>
+        ))}
+      </div>
+
       {message && <p className="notice notice-error mobile-notice">{message}</p>}
 
       <div className="mobile-section-head">
@@ -961,11 +1161,23 @@ export default function Home({ user, goTrack, onOrderPlaced, cartRequest = 0 }) 
                   <small>
                     {shop.eta} - {shop.distanceKm.toFixed(1)} km - {shop.availabilityReason}
                   </small>
+                  <div className="trust-signal-row">
+                    <span>{shop.trustScore}% trust</span>
+                    <span>{shop.hygieneRating} hygiene</span>
+                    <span>{shop.customerPhotos} photos</span>
+                  </div>
+                  <div className="food-intel-strip">
+                    <span>{shop.freshness}</span>
+                    <span>{shop.nutrition}</span>
+                    <span>{shop.trendSignal}</span>
+                  </div>
                 </div>
                 <div className="menu-order-row">
                   <div>
                     <strong>{shop.item.name}</strong>
-                    <span>Rs {shop.item.price}</span>
+                    <span>
+                      Rs {shop.item.price} - saves Rs {Math.max(0, Number(shop.priceBenchmark || 0) - shop.item.price)}
+                    </span>
                   </div>
                   <QuantityControl
                     quantity={quantity}
@@ -1432,6 +1644,29 @@ function CheckoutReview({
           <p>{deliveryDetails.address}</p>
         </div>
 
+        <div className="checkout-intelligence-grid" aria-label="Transparent checkout benefits">
+          <article>
+            <span>Price lock</span>
+            <strong>Rs {bill.customerTotal}</strong>
+            <p>No post-payment fee change. Lock ID {bill.priceLockId}</p>
+          </article>
+          <article>
+            <span>Market compare</span>
+            <strong>Save Rs {bill.savingsVsMarket}</strong>
+            <p>Compared with Rs {bill.marketBenchmark} typical local checkout.</p>
+          </article>
+          <article>
+            <span>Wallet reward</span>
+            <strong>Rs {bill.walletCashback}</strong>
+            <p>Cashback reserved after restaurant acceptance.</p>
+          </article>
+          <article>
+            <span>Food trust</span>
+            <strong>{shop.trustScore}%</strong>
+            <p>{shop.customerPhotos} real photos, {shop.verifiedReviews} verified reviews.</p>
+          </article>
+        </div>
+
         <div className="payment-options" aria-label="Payment option">
           {PAYMENT_OPTIONS.map((option) => (
             <button
@@ -1451,6 +1686,7 @@ function CheckoutReview({
           <BillLine label="Platform fee" value={bill.platformFee} />
           {bill.priorityMatchFee > 0 && <BillLine label="Priority partner match" value={bill.priorityMatchFee} />}
           <BillLine label="Delivery partner tip" value={bill.tip} />
+          <BillLine label="Wallet cashback" value={bill.walletCashback} />
           <BillLine label="Final amount" value={bill.customerTotal} strong />
         </div>
 

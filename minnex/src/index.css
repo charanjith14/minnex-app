@@ -3631,6 +3631,112 @@ textarea {
   font-weight: 900;
 }
 
+.strategy-promise-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.strategy-promise-grid article,
+.checkout-intelligence-grid article {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.strategy-promise-grid span,
+.checkout-intelligence-grid span,
+.trust-signal-row span,
+.food-intel-strip span {
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.strategy-promise-grid span,
+.checkout-intelligence-grid span {
+  color: #ef476f;
+}
+
+.strategy-promise-grid strong,
+.checkout-intelligence-grid strong {
+  color: #101828;
+  line-height: 1.12;
+}
+
+.ai-mood-row {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 0 18px 2px;
+}
+
+.ai-mood-row button {
+  flex: 0 0 auto;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid #e2e6ef;
+  border-radius: 999px;
+  color: #283044;
+  background: white;
+  font-weight: 900;
+}
+
+.ai-mood-row button.is-active {
+  color: white;
+  border-color: #ef476f;
+  background: #ef476f;
+}
+
+.trust-signal-row,
+.food-intel-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.trust-signal-row span {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  border-radius: 999px;
+  color: #14532d;
+  background: #dcfce7;
+}
+
+.food-intel-strip span {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  border-radius: 8px;
+  color: #283044;
+  background: #f4f7fb;
+}
+
+.checkout-intelligence-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.checkout-intelligence-grid article {
+  border: 1px solid #e5eaf2;
+  background: #f8fafc;
+}
+
+.checkout-intelligence-grid p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
 .address-backdrop {
   align-items: end;
 }
@@ -3781,6 +3887,11 @@ textarea {
   }
 
   .restaurant-feed {
+    grid-template-columns: 1fr;
+  }
+
+  .strategy-promise-grid,
+  .checkout-intelligence-grid {
     grid-template-columns: 1fr;
   }
 

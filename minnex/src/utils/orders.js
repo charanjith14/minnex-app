@@ -66,6 +66,12 @@ export const createOrder = async (user, shop, deliveryDetails, payment = {}, bil
       priorityMatchFee: Number(bill.priorityMatchFee || 0),
       tip: Number(bill.tip || 0),
       customerTotal,
+      marketBenchmark: Number(bill.marketBenchmark || customerTotal),
+      savingsVsMarket: Number(bill.savingsVsMarket || 0),
+      walletCashback: Number(bill.walletCashback || 0),
+      priceLockId: bill.priceLockId || `lock-${orderItems[0]?.id || shop.id}-${createdAtMs}`,
+      feeTransparency: bill.feeTransparency || "All charges locked before payment.",
+      hiddenCharges: false,
       paymentStatus
     },
     settlement: {
@@ -75,6 +81,9 @@ export const createOrder = async (user, shop, deliveryDetails, payment = {}, bil
       agentBasePay: Number(bill.agentBasePay || 0),
       distancePay: Number(bill.distancePay || 0),
       surgePay: Number(bill.surgePay || 0),
+      fuelAdjustment: Number(bill.fuelAdjustment || 0),
+      waitingCompensation: Number(bill.waitingCompensation || 0),
+      insuranceContribution: Number(bill.insuranceContribution || 0),
       tip: Number(bill.tip || 0),
       agentTotal: Number(bill.agentTotal || 0),
       platformRevenue: Number(bill.platformRevenue || 0),
@@ -90,7 +99,36 @@ export const createOrder = async (user, shop, deliveryDetails, payment = {}, bil
     matching: {
       status: "waiting_for_restaurant",
       priorityScore: 0,
-      assignedBy: "backend_queue"
+      assignedBy: "backend_queue",
+      etaConfidence: shop.etaConfidence || "AI ETA pending",
+      ecoBatching: shop.ecoMode || "Food-safe batching only"
+    },
+    foodTrust: {
+      score: Number(shop.trustScore || 0),
+      hygieneRating: shop.hygieneRating || "Pending",
+      freshness: shop.freshness || "Freshness signal pending",
+      customerPhotos: Number(shop.customerPhotos || 0),
+      verifiedReviews: Number(shop.verifiedReviews || 0),
+      liveKitchen: Boolean(shop.liveKitchen),
+      tamperProofVerification: true
+    },
+    personalization: {
+      aiMoods: shop.aiMoods || [],
+      nutrition: shop.nutrition || "",
+      trendSignal: shop.trendSignal || "",
+      hyperlocalType: shop.hyperlocalType || "Restaurant partner"
+    },
+    wallet: {
+      cashbackReserved: Number(bill.walletCashback || 0),
+      sharedMembershipEligible: true,
+      loyaltyRule: "third_order_reward",
+      status: "reserved_after_restaurant_acceptance"
+    },
+    smartDelivery: {
+      etaConfidence: shop.etaConfidence || "AI ETA pending",
+      trafficAwareRouting: true,
+      ecoDeliveryMode: shop.ecoMode || "Food-safe batching only",
+      evOptimized: /EV/i.test(shop.ecoMode || "")
     },
     status: "order placed",
     paid: true,

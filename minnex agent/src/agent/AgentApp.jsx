@@ -15,10 +15,10 @@ const AGENT_ID_KEY = "minnex-agent-id";
 const AGENT_NAME_KEY = "minnex-agent-name";
 
 const GO_INSIGHTS = [
-  { label: "Hot zone", value: "Beach Road", detail: "High dinner demand in 18 min" },
-  { label: "Guaranteed floor", value: "Rs 75", detail: "Minimum payout for long waits" },
+  { label: "Hot zone", value: "Beach Road", detail: "AI demand forecast shows dinner surge in 18 min" },
+  { label: "Guaranteed floor", value: "Rs 75", detail: "Minimum payout with waiting compensation" },
   { label: "Safe route", value: "Lit streets", detail: "Route hints prefer main roads" },
-  { label: "Batching", value: "Smart", detail: "Avoids cold-food double pickups" }
+  { label: "Fuel support", value: "Live", detail: "Distance-linked fuel adjustment added to orders" }
 ];
 const MENU_OPTIONS = [
   "Profile",
@@ -113,6 +113,9 @@ const getAgentEarnings = (order) => {
     base: Number(settlement.agentBasePay || 0),
     distance: Number(settlement.distancePay || 0),
     surge: Number(settlement.surgePay || 0),
+    fuel: Number(settlement.fuelAdjustment || 0),
+    wait: Number(settlement.waitingCompensation || 0),
+    insurance: Number(settlement.insuranceContribution || 0),
     tip: Number(settlement.tip || order?.billing?.tip || 0),
     total: Number(settlement.agentTotal || 0)
   };
@@ -198,16 +201,19 @@ export default function AgentApp({ user }) {
   const canAcceptOrders = verificationStatus === "approved";
   const earnings = useMemo(() => {
     const allMine = [...myOrders, ...completedOrders];
-    const totals = allMine.reduce(
+        const totals = allMine.reduce(
       (sum, order) => {
         const orderEarnings = getAgentEarnings(order);
         return {
           total: sum.total + orderEarnings.total,
           tips: sum.tips + orderEarnings.tip,
-          surge: sum.surge + orderEarnings.surge
+          surge: sum.surge + orderEarnings.surge,
+          fuel: sum.fuel + orderEarnings.fuel,
+          wait: sum.wait + orderEarnings.wait,
+          insurance: sum.insurance + orderEarnings.insurance
         };
       },
-      { total: 0, tips: 0, surge: 0 }
+      { total: 0, tips: 0, surge: 0, fuel: 0, wait: 0, insurance: 0 }
     );
 
     return totals;
@@ -522,9 +528,19 @@ export default function AgentApp({ user }) {
             <span>Surge</span>
             <strong>Rs {earnings.surge}</strong>
           </div>
+          <div className="metric-tile">
+            <span>Fuel</span>
+            <strong>Rs {earnings.fuel}</strong>
+          </div>
+          <div className="metric-tile">
+            <span>Wait</span>
+            <strong>Rs {earnings.wait}</strong>
+          </div>
         </section>
 
         {message && <p className="notice agent-notice">{message}</p>}
+
+        <PartnerBenefitsPanel earnings={earnings} />
 
         <VerificationPanel
           agentName={agentName}
@@ -639,6 +655,33 @@ function MenuInfoPanel({ title, copy, account, onClose }) {
   );
 }
 
+function PartnerBenefitsPanel({ earnings }) {
+  return (
+    <section className="partner-benefits-panel" aria-label="Partner-first benefits">
+      <article>
+        <span>Fuel adjustment</span>
+        <strong>Rs {earnings.fuel}</strong>
+        <p>Distance-linked support is visible before and after delivery.</p>
+      </article>
+      <article>
+        <span>Waiting pay</span>
+        <strong>Rs {earnings.wait}</strong>
+        <p>Long kitchen waits are compensated through the order settlement.</p>
+      </article>
+      <article>
+        <span>Insurance pool</span>
+        <strong>Rs {earnings.insurance}</strong>
+        <p>Every completed delivery contributes to partner protection.</p>
+      </article>
+      <article>
+        <span>Perks</span>
+        <strong>Priority queue</strong>
+        <p>Approved Go partners get safe-route and high-payout matching signals.</p>
+      </article>
+    </section>
+  );
+}
+
 function VerificationPanel({ agentName, form, profile, busy, onAgentNameChange, onFormChange, onSubmit }) {
   const verification = profile?.verification;
   const status = verification?.status || "not_submitted";
@@ -722,6 +765,7 @@ function OrderCard({ order, busy, canAccept, verificationStatus, onAccept }) {
         <span>{order.paid ? "Paid" : "Unpaid"}</span>
         <span>Earn Rs {getAgentEarnings(order).total}</span>
         <span>Priority {order.matching?.priorityScore ?? 0}</span>
+        <span>{order.smartDelivery?.etaConfidence || order.matching?.etaConfidence || "AI ETA"}</span>
       </div>
       <button className="primary-button" onClick={onAccept} disabled={busy || !canAccept} type="button">
         {busy ? "Accepting..." : canAccept ? "Accept delivery" : `Verification ${verificationStatus}`}
@@ -746,6 +790,7 @@ function OrderWorkSurface({ order, busy, deliveryDetails, onLocation, onStatus }
         <span>Rs {order.price}</span>
         <span>{order.paid ? "Paid" : "Collect payment"}</span>
         <span>Earn Rs {getAgentEarnings(order).total}</span>
+        <span>{order.smartDelivery?.ecoDeliveryMode || "Food-safe route"}</span>
       </div>
 
       <DeliveryDetails order={order} deliveryDetails={deliveryDetails} />
@@ -790,15 +835,15 @@ function RouteAssistPanel({ order }) {
     <div className="route-assist-panel">
       <div>
         <span>Pickup promise</span>
-        <strong>{order.eta || "ASAP"}</strong>
+        <strong>{order.smartDelivery?.etaConfidence || order.matching?.etaConfidence || order.eta || "ASAP"}</strong>
       </div>
       <div>
         <span>Food care</span>
-        <strong>Hot bag check</strong>
+        <strong>{order.foodTrust?.tamperProofVerification ? "Tamper seal" : "Hot bag check"}</strong>
       </div>
       <div>
-        <span>Support</span>
-        <strong>One-tap escalation</strong>
+        <span>Route</span>
+        <strong>{order.smartDelivery?.ecoDeliveryMode || "Traffic aware"}</strong>
       </div>
     </div>
   );
@@ -820,6 +865,18 @@ function EarningsPanel({ order }) {
       <div>
         <span>Surge</span>
         <strong>Rs {earnings.surge}</strong>
+      </div>
+      <div>
+        <span>Fuel</span>
+        <strong>Rs {earnings.fuel}</strong>
+      </div>
+      <div>
+        <span>Wait</span>
+        <strong>Rs {earnings.wait}</strong>
+      </div>
+      <div>
+        <span>Insurance</span>
+        <strong>Rs {earnings.insurance}</strong>
       </div>
       <div>
         <span>Tip</span>

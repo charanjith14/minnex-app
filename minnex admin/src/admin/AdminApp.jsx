@@ -133,6 +133,12 @@ const calculatePriorityScore = (order) => {
   return paidBoost + ageBoost - distancePenalty;
 };
 
+const average = (values) => {
+  const cleanValues = values.map(Number).filter((value) => Number.isFinite(value) && value > 0);
+  if (!cleanValues.length) return 0;
+  return cleanValues.reduce((sum, value) => sum + value, 0) / cleanValues.length;
+};
+
 const getProfile = (restaurant, profiles) => ({
   ...restaurant,
   ...(profiles[restaurant.id] || {}),
@@ -284,6 +290,11 @@ export default function AdminApp({ user }) {
     const averageFood =
       feedbackOrders.reduce((sum, order) => sum + Number(order.feedback.foodRating || 0), 0) /
       (feedbackOrders.length || 1);
+    const trustAverage = average(orders.map((order) => order.foodTrust?.score));
+    const cashbackLiability = orders.reduce((sum, order) => sum + Number(order.wallet?.cashbackReserved || 0), 0);
+    const refundWatch = supportTickets.filter((ticket) => ticket.autoRefundEligible && ticket.status !== "resolved");
+    const hyperlocalOrders = orders.filter((order) => order.personalization?.hyperlocalType).length;
+    const aiEtaOrders = orders.filter((order) => order.smartDelivery?.trafficAwareRouting).length;
 
     return {
       total: orders.length,
@@ -298,9 +309,14 @@ export default function AdminApp({ user }) {
       partnerPayout,
       tips,
       openTickets: openTickets.length,
+      refundWatch: refundWatch.length,
       agents: activeAgents.size,
       feedback: feedbackOrders.length,
-      averageFood: feedbackOrders.length ? averageFood.toFixed(1) : "0.0"
+      averageFood: feedbackOrders.length ? averageFood.toFixed(1) : "0.0",
+      trustAverage: trustAverage ? `${Math.round(trustAverage)}%` : "NA",
+      cashbackLiability,
+      hyperlocalOrders,
+      aiEtaOrders
     };
   }, [orders, supportTickets]);
 
@@ -636,6 +652,9 @@ export default function AdminApp({ user }) {
           <Metric label="Partner payout" value={`Rs ${stats.partnerPayout}`} />
           <Metric label="Tips" value={`Rs ${stats.tips}`} />
           <Metric label="Support" value={stats.openTickets} />
+          <Metric label="Trust avg" value={stats.trustAverage} />
+          <Metric label="Cashback" value={`Rs ${stats.cashbackLiability}`} />
+          <Metric label="Refund watch" value={stats.refundWatch} />
         </section>
 
         {message && <p className="notice admin-notice">{message}</p>}
@@ -657,6 +676,8 @@ export default function AdminApp({ user }) {
             <p>Bring back customers without broad discount leakage.</p>
           </article>
         </section>
+
+        <StrategyOpsPanel stats={stats} selectedProfile={selectedRestaurantProfile} />
 
         <RestaurantOpsPanel
           restaurants={RESTAURANT_CATALOG}
@@ -823,6 +844,43 @@ function Metric({ label, value }) {
   );
 }
 
+function StrategyOpsPanel({ stats, selectedProfile }) {
+  return (
+    <section className="strategy-ops-panel" aria-label="Competitive strategy controls">
+      <article>
+        <span>Food trust</span>
+        <strong>{stats.trustAverage}</strong>
+        <p>Hygiene, real-photo, freshness, and tamper-seal signals attached to orders.</p>
+      </article>
+      <article>
+        <span>Restaurant analytics</span>
+        <strong>{selectedProfile?.isPaused ? "Paused" : "Live"}</strong>
+        <p>Demand, stock, opening hours, and flash-deal controls stay in Minnex Biz.</p>
+      </article>
+      <article>
+        <span>Wallet liability</span>
+        <strong>Rs {stats.cashbackLiability}</strong>
+        <p>Reserved cashback for prepaid customers before settlement release.</p>
+      </article>
+      <article>
+        <span>Smart delivery</span>
+        <strong>{stats.aiEtaOrders}</strong>
+        <p>Traffic-aware ETA, EV preference, and grouped delivery readiness.</p>
+      </article>
+      <article>
+        <span>Hyperlocal</span>
+        <strong>{stats.hyperlocalOrders}</strong>
+        <p>Street-food, home-chef, bakery, and local kitchen supply can be measured.</p>
+      </article>
+      <article>
+        <span>Human escalation</span>
+        <strong>{stats.refundWatch}</strong>
+        <p>AI support tickets with refund or coupon review stay visible to operators.</p>
+      </article>
+    </section>
+  );
+}
+
 function MenuInfoPanel({ title, copy, account, onClose }) {
   return (
     <div className="menu-info-backdrop" role="presentation">
@@ -944,6 +1002,10 @@ function OrderAdminDetail({ order, busy, onAccept, onReject, onStatus, onPayment
         <Info label="Partner earn" value={`Rs ${order.settlement?.agentTotal || 0}`} />
         <Info label="Platform fee" value={`Rs ${order.billing?.platformFee || 0}`} />
         <Info label="Priority" value={order.matching?.priorityScore ?? "Queue"} />
+        <Info label="Price lock" value={order.billing?.priceLockId || "Not locked"} />
+        <Info label="Food trust" value={order.foodTrust?.score ? `${order.foodTrust.score}%` : "Pending"} />
+        <Info label="Wallet" value={`Rs ${order.wallet?.cashbackReserved || 0}`} />
+        <Info label="Smart ETA" value={order.smartDelivery?.etaConfidence || order.matching?.etaConfidence || "Pending"} />
       </div>
 
       {restaurantActionable && (
@@ -962,6 +1024,8 @@ function OrderAdminDetail({ order, busy, onAccept, onReject, onStatus, onPayment
       )}
 
       <FeedbackDetail feedback={order.feedback} />
+
+      <StrategyOrderDetail order={order} />
 
       <div className="admin-actions">
         <p className="eyebrow">Status</p>
@@ -1021,6 +1085,22 @@ function FeedbackDetail({ feedback }) {
   );
 }
 
+function StrategyOrderDetail({ order }) {
+  return (
+    <div className="admin-feedback-card">
+      <p className="eyebrow">Competitive signals</p>
+      <div className="strategy-detail-grid">
+        <span>{order.foodTrust?.hygieneRating || "Hygiene pending"}</span>
+        <span>{order.foodTrust?.freshness || "Freshness pending"}</span>
+        <span>{order.personalization?.nutrition || "Nutrition pending"}</span>
+        <span>{order.personalization?.trendSignal || "Trend pending"}</span>
+        <span>{order.smartDelivery?.ecoDeliveryMode || "Eco route pending"}</span>
+        <span>{order.wallet?.loyaltyRule || "Loyalty pending"}</span>
+      </div>
+    </div>
+  );
+}
+
 function AgentVerificationCard({ agent, busy, onApprove, onReject }) {
   const verification = agent.verification || {};
   const status = verification.status || "not_submitted";
@@ -1060,7 +1140,14 @@ function SupportTicketCard({ ticket, busy, onResolve, onRefund }) {
       <div className="agent-proof">
         <span>AI action</span>
         <strong>{ticket.aiResolution || "Intent detected"}</strong>
-        <small>{ticket.escalation || "ai_first_response"}</small>
+        <small>
+          {ticket.escalation || "ai_first_response"} - {ticket.humanEscalationSlaSeconds || 30}s SLA
+        </small>
+      </div>
+      <div className="agent-proof">
+        <span>Refund automation</span>
+        <strong>{ticket.autoRefundEligible ? "Eligible for review" : "Manual review"}</strong>
+        <small>{ticket.regionalLanguageReady ? "Regional language ready" : "English support"}</small>
       </div>
       <div className="admin-action-row">
         <button className="primary-button" onClick={onResolve} disabled={busy || ticket.status === "resolved"} type="button">
