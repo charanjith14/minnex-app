@@ -858,12 +858,13 @@ export default function Home({ user, goTrack, onOrderPlaced, cartRequest = 0 }) 
         </div>
 
         <div className="hero-premium-section">
-          <h1>India's Smart Delivery Network</h1>
-          <p>Everything Delivered Faster. Real-time tracking and AI-powered batching for lightning-fast orders.</p>
+          <span className="premium-badge">⚡ AI POWERED</span>
+          <h1>India's Smartest Delivery</h1>
+          <p>We batch orders with AI to save you 40% on delivery fees and 15 mins on every order.</p>
           <div className="trust-badges">
-            <span>⚡ Avg 22 min</span>
-            <span>🔒 Secure</span>
-            <span>⭐ 4.8/5 Rated</span>
+            <span className="trust-pill">🚀 22m Avg</span>
+            <span className="trust-pill">🛡️ Insured</span>
+            <span className="trust-pill">💎 Premium</span>
           </div>
         </div>
 
@@ -1075,6 +1076,25 @@ export default function Home({ user, goTrack, onOrderPlaced, cartRequest = 0 }) 
           onConfirm={() => handleOrder(reviewShop)}
         />
       )}
+
+      <nav className="bottom-nav">
+        <button className={`bottom-nav-item ${activeMode === 'food' ? 'is-active' : ''}`} onClick={() => setActiveMode('food')}>
+          <div className="bottom-nav-icon">🏠</div>
+          <span>Home</span>
+        </button>
+        <button className={`bottom-nav-item ${activeMode === 'express' ? 'is-active' : ''}`} onClick={() => setActiveMode('express')}>
+          <div className="bottom-nav-icon">⚡</div>
+          <span>Express</span>
+        </button>
+        <button className="bottom-nav-item" onClick={goTrack}>
+          <div className="bottom-nav-icon">📍</div>
+          <span>Track</span>
+        </button>
+        <button className="bottom-nav-item" onClick={() => setAddressOpen(true)}>
+          <div className="bottom-nav-icon">👤</div>
+          <span>Account</span>
+        </button>
+      </nav>
     </section>
   );
 }
