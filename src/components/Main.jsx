@@ -24,31 +24,40 @@ export default function Main({ user }) {
           className="brand-lockup"
           onClick={() => setActiveTab("home")}
           type="button"
-          aria-label="Go to orders"
+          aria-label="Go to home"
         >
           <MinnexLogo variant="customer" className="brand-mark" />
-          <span>MINNEX</span>
+          <span className="brand-lockup-name">MINNEX</span>
         </button>
 
         <div className="top-bar-actions">
-          <div className="view-switch" aria-label="Minnex views">
-            <button onClick={openCart} type="button">
-              <span className="cart-glyph" aria-hidden="true" />
-              Cart
-            </button>
-          </div>
+          <button
+            className={`nav-pill-btn ${activeTab === "home" ? "is-active" : ""}`}
+            onClick={() => setActiveTab("home")}
+            type="button"
+          >
+            🍽 Order
+          </button>
+          <button
+            className={`nav-pill-btn ${activeTab === "track" ? "is-active" : ""}`}
+            onClick={() => setActiveTab("track")}
+            type="button"
+          >
+            📦 Track
+          </button>
+          <button className="cart-pill-btn" onClick={openCart} type="button" aria-label="View cart">
+            <span className="cart-glyph" aria-hidden="true" />
+            Cart
+          </button>
           <details className="menu-popover">
             <summary className="menu-trigger" aria-label="Open account menu">
-              Account
+              <span className="menu-avatar">{(user.phoneNumber || "U").slice(-1)}</span>
             </summary>
             <div className="menu-panel">
               <span>{user.phoneNumber || user.email || "Signed in"}</span>
-              <button onClick={() => setActiveTab("home")} type="button">
-                Food
-              </button>
-              <button onClick={() => auth.signOut()} type="button">
-                Logout
-              </button>
+              <button onClick={() => setActiveTab("home")} type="button">🍽 Food</button>
+              <button onClick={() => setActiveTab("track")} type="button">📦 Track order</button>
+              <button onClick={() => auth.signOut()} type="button" className="menu-signout">🚪 Sign out</button>
             </div>
           </details>
         </div>
