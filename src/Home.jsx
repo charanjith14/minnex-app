@@ -164,6 +164,24 @@ const SHOPS = [
   }
 ];
 
+const VIBES = [
+  { id: "all", label: "All Vibes", icon: "✨" },
+  { id: "stress", label: "Stress Relief", icon: "🍛", tags: ["biryani", "north indian"] },
+  { id: "workout", label: "Post-Workout", icon: "💪", tags: ["healthy", "protein"] },
+  { id: "cheat", label: "Cheat Day", icon: "🍔", tags: ["burgers", "fried"] },
+  { id: "wellness", label: "Wellness", icon: "🧘", tags: ["kerala", "millet", "veg"] },
+  { id: "quick", label: "Quick Energy", icon: "⚡", tags: ["express", "dosa"] }
+];
+
+const MACROS = {
+  "classic-burger": { p: "22g", k: "14g", c: "420" },
+  "appam-stew": { p: "8g", k: "12g", c: "280" },
+  "tandoori-thali": { p: "28g", k: "18g", c: "520" },
+  "fish-curry-meal": { p: "32g", k: "15g", c: "480" },
+  "hyderabadi-biryani": { p: "24g", k: "22g", c: "650" },
+  "millet-power-bowl": { p: "18g", k: "9g", c: "310" }
+};
+
 const FILTERS = ["Recommended", "Offers", "Express", "Pure veg", "Healthy", "Top rated", "Near you"];
 const TIP_OPTIONS = [0, 20, 40, 60];
 const FOOD_MOODS = ["All", "Kerala", "Biryani", "Dosa", "Burgers", "Healthy"];
@@ -285,6 +303,10 @@ const calculateBill = (shop, tip = 0, priorityMatch = false, quantity = 1) => {
     restaurantCommission + platformFee + deliveryFee + priorityMatchFee - agentBasePay - distancePay - surgePay;
   const customerTotal = subtotal + deliveryFee + platformFee + priorityMatchFee + Number(tip || 0);
 
+  // Sustainability tracking
+  const carbonGrams = Math.round(Number(shop.distanceKm || 0) * 120);
+  const ecoScore = carbonGrams < 400 ? "A+" : carbonGrams < 800 ? "A" : "B";
+
   return {
     subtotal,
     itemTotal: subtotal,
@@ -295,6 +317,8 @@ const calculateBill = (shop, tip = 0, priorityMatch = false, quantity = 1) => {
     customerTotal,
     unitPrice: itemPrice,
     quantity: itemQuantity,
+    carbonGrams,
+    ecoScore,
     items: [
       {
         id: shop.item?.id || shop.id,
@@ -483,6 +507,9 @@ export default function Home({ user, goTrack, onOrderPlaced, cartRequest = 0 }) 
   const [noContact, setNoContact] = useState(true);
   const [groupOrder, setGroupOrder] = useState(false);
   const [priorityMatch, setPriorityMatch] = useState(true);
+  const [dietMode, setDietMode] = useState(false);
+  const [selectedVibe, setSelectedVibe] = useState("all");
+  const [weather, setWeather] = useState("sunny"); // Simulated weather
   const [deliveryProfiles, setDeliveryProfiles] = useState(() => loadDeliveryProfiles(user));
   const [activeProfileId, setActiveProfileId] = useState(() => {
     const profiles = loadDeliveryProfiles(user);
@@ -674,6 +701,28 @@ export default function Home({ user, goTrack, onOrderPlaced, cartRequest = 0 }) 
       return [...shops].sort((a, b) => a.distanceKm - b.distanceKm);
     }
 
+    // Diet Mode Filtering (High Protein focus for now)
+    if (dietMode) {
+      shops = shops.filter(shop => {
+        const macro = MACROS[shop.item.id];
+        return macro && parseInt(macro.p) >= 15; // Only show high protein
+      });
+    }
+
+    // Vibe Filtering
+    if (selectedVibe !== "all") {
+      const vibe = VIBES.find(v => v.id === selectedVibe);
+      if (vibe) {
+        shops = shops.filter(shop => 
+          vibe.tags.some(tag => 
+            shop.tags.some(st => st.toLowerCase().includes(tag)) || 
+            shop.cuisine.toLowerCase().includes(tag) ||
+            (vibe.id === "quick" && shop.deliveryMode === "Express")
+          )
+        );
+      }
+    }
+
     return [...shops].sort((a, b) => {
       const aScore =
         (a.isOpen ? 50 : 0) + Number(a.rating) * 10 + a.sponsoredBoost * 5 - a.distanceKm + (a.offer ? 4 : 0);
@@ -681,7 +730,7 @@ export default function Home({ user, goTrack, onOrderPlaced, cartRequest = 0 }) 
         (b.isOpen ? 50 : 0) + Number(b.rating) * 10 + b.sponsoredBoost * 5 - b.distanceKm + (b.offer ? 4 : 0);
       return bScore - aScore;
     });
-  }, [activeFilter, activeMode, effectiveShops, searchTerm, selectedFoodId, selectedMood]);
+  }, [activeFilter, activeMode, effectiveShops, searchTerm, selectedFoodId, selectedMood, dietMode, selectedVibe]);
 
   const reviewShop = useMemo(
     () => effectiveShops.find((shop) => shop.id === reviewShopId) || null,
@@ -857,14 +906,57 @@ export default function Home({ user, goTrack, onOrderPlaced, cartRequest = 0 }) 
           </button>
         </div>
 
-        <div className="hero-premium-section">
-          <span className="premium-badge">⚡ AI POWERED</span>
-          <h1>India's Smartest Delivery</h1>
-          <p>We batch orders with AI to save you 40% on delivery fees and 15 mins on every order.</p>
-          <div className="trust-badges">
-            <span className="trust-pill">🚀 22m Avg</span>
-            <span className="trust-pill">🛡️ Insured</span>
-            <span className="trust-pill">💎 Premium</span>
+        <div className={`weather-header ${weather}`}>
+          <div className="hero-premium-section">
+            <span className="premium-badge">⚡ AI POWERED</span>
+            <h1>India's Smartest Delivery</h1>
+            <p>We batch orders with AI to save you 40% on delivery fees and 15 mins on every order.</p>
+            <div className="trust-badges">
+              <span className="trust-pill">🚀 22m Avg</span>
+              <span className="trust-pill">🛡️ Insured</span>
+              <span className="trust-pill">💎 Premium</span>
+            </div>
+          </div>
+        </div>
+
+        {groupOrder && (
+          <div className="party-presence">
+            <div className="avatar-stack">
+              <div className="avatar" style={{background: 'var(--coral)'}}>A</div>
+              <div className="avatar" style={{background: 'var(--green)'}}>M</div>
+              <div className="avatar" style={{background: 'var(--purple)'}}>S</div>
+              <div className="avatar">+2</div>
+            </div>
+            <span style={{fontSize: '0.8rem', fontWeight: 700, color: 'var(--purple)'}}>
+              3 friends are adding items to the cart
+            </span>
+          </div>
+        )}
+
+        <div className={`diet-toggle-bar ${dietMode ? 'is-active' : ''}`}>
+          <div className="diet-icon">🥗</div>
+          <div className="diet-info">
+            <strong>Diet Mode</strong>
+            <span>{dietMode ? 'Showing only High Protein (15g+)' : 'Personalize your nutrition'}</span>
+          </div>
+          <label className="switch">
+            <input type="checkbox" checked={dietMode} onChange={e => setDietMode(e.target.checked)} />
+            <span className="slider"></span>
+          </label>
+        </div>
+
+        <div className="vibe-search-container">
+          <p className="eyebrow" style={{marginLeft: 0}}>What's your vibe today?</p>
+          <div className="vibe-chip-row">
+            {VIBES.map(vibe => (
+              <button 
+                key={vibe.id} 
+                className={`vibe-chip ${selectedVibe === vibe.id ? 'is-active' : ''}`}
+                onClick={() => setSelectedVibe(vibe.id)}
+              >
+                {vibe.icon} {vibe.label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -968,10 +1060,20 @@ export default function Home({ user, goTrack, onOrderPlaced, cartRequest = 0 }) 
                     <h3>{shop.name}</h3>
                     <span className="rating-pill">{shop.rating}</span>
                   </div>
-                  <p>{shop.cuisine}</p>
+                  <div style={{display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px'}}>
+                    <p style={{margin: 0}}>{shop.cuisine}</p>
+                    {shop.isOpen && <span className="kitchen-live-tag"><span className="live-pulse" /> Kitchen Live</span>}
+                  </div>
                   <small>
                     {shop.eta} - {shop.distanceKm.toFixed(1)} km - {shop.availabilityReason}
                   </small>
+                  {MACROS[shop.item.id] && (
+                    <div className="macro-badges">
+                      <span className="macro-badge macro-p">P: {MACROS[shop.item.id].p}</span>
+                      <span className="macro-badge macro-k">K: {MACROS[shop.item.id].k}</span>
+                      <span className="macro-badge macro-c">CAL: {MACROS[shop.item.id].c}</span>
+                    </div>
+                  )}
                 </div>
                 <div className="menu-order-row">
                   <div>
@@ -1460,6 +1562,14 @@ function CheckoutReview({
           <span>Deliver to</span>
           <strong>{deliveryDetails.name?.trim() || "Customer"}</strong>
           <p>{deliveryDetails.address}</p>
+        </div>
+
+        <div className="eco-tracker">
+          <div className="eco-icon">🌱</div>
+          <div className="eco-info">
+            <span>Sustainability Impact</span>
+            <strong>Eco Score: {bill.ecoScore} ({bill.carbonGrams}g CO2e)</strong>
+          </div>
         </div>
 
         <div className="payment-options" aria-label="Payment option">
