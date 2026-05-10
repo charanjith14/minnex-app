@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+@import url('./modern-theme.css');
 
 :root {
   --ink: #f8fafc;
@@ -33,17 +34,28 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-* {
-  box-sizing: border-box;
+*, *::before, *::after {
+  box-sizing: border-box !important;
 }
 
 html, body {
-  width: 100%;
-  max-width: 100vw;
-  overflow-x: hidden;
-  position: relative;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
   margin: 0;
   padding: 0;
+  position: relative;
+}
+
+#root, #app, .app-container, ion-app {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+}
+
+img, video, canvas {
+  max-width: 100%;
+  height: auto;
 }
 
 html {
@@ -448,7 +460,8 @@ img {
   background-position: center, center, right center;
 }
 .login-panel {
-  width: min(100%, 430px);
+  width: 100%;
+  max-width: 430px;
   padding: 32px;
   border: var(--glass-border);
   border-radius: var(--radius-lg);
@@ -4312,6 +4325,8 @@ textarea {
   .checkout-review-head {
     display: flex;
   }
+}
+
 @media (max-width: 480px) {
   .brand-lockup-name {
     display: none;

@@ -480,7 +480,7 @@ const getHumanBotReply = (message) => {
   return "I am here with you. Tell me what happened in one line, like payment failed, order is late, wrong item, or address change. I will keep the next step simple.";
 };
 
-export default function Home({ user, goTrack, onOrderPlaced, cartRequest = 0 }) {
+export default function Home({ user, goTrack, onOrderPlaced, cartRequest = 0, globalSearchTerm = "" }) {
   const [activeFilter, setActiveFilter] = useState(FILTERS[0]);
   const [selectedMood, setSelectedMood] = useState("All");
   const [selectedFoodId, setSelectedFoodId] = useState("all");
@@ -640,7 +640,7 @@ export default function Home({ user, goTrack, onOrderPlaced, cartRequest = 0 }) 
   }, [effectiveShops]);
 
   const visibleShops = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
+    const normalizedSearch = (searchTerm || globalSearchTerm).trim().toLowerCase();
     const normalizedMood = selectedMood.toLowerCase();
 
     let shops = [...effectiveShops];
@@ -730,7 +730,7 @@ export default function Home({ user, goTrack, onOrderPlaced, cartRequest = 0 }) 
         (b.isOpen ? 50 : 0) + Number(b.rating) * 10 + b.sponsoredBoost * 5 - b.distanceKm + (b.offer ? 4 : 0);
       return bScore - aScore;
     });
-  }, [activeFilter, activeMode, effectiveShops, searchTerm, selectedFoodId, selectedMood, dietMode, selectedVibe]);
+  }, [activeFilter, activeMode, effectiveShops, searchTerm, globalSearchTerm, selectedFoodId, selectedMood, dietMode, selectedVibe]);
 
   const reviewShop = useMemo(
     () => effectiveShops.find((shop) => shop.id === reviewShopId) || null,
@@ -974,7 +974,7 @@ export default function Home({ user, goTrack, onOrderPlaced, cartRequest = 0 }) 
           ))}
         </div>
 
-        <div className="mobile-search-row">
+        <div className="mobile-search-row" style={{ display: 'none' }}>
           <label className="mobile-search">
             <span>Search</span>
             <input
@@ -1023,11 +1023,18 @@ export default function Home({ user, goTrack, onOrderPlaced, cartRequest = 0 }) 
         ))}
       </section>
 
-      <div className="mobile-filter-row" aria-label="Restaurant filters">
-        {FILTERS.slice(0, 5).map((filter) => (
+      <div className="chip-row-container" aria-label="Restaurant filters">
+        <button
+          className={`modern-chip ${activeFilter === "Pure veg" ? "is-active" : ""}`}
+          onClick={() => setActiveFilter(activeFilter === "Pure veg" ? FILTERS[0] : "Pure veg")}
+          type="button"
+        >
+          {activeFilter === "Pure veg" ? "✕ Pure veg" : "🌱 Pure veg"}
+        </button>
+        {FILTERS.filter(f => f !== "Pure veg").map((filter) => (
           <button
             key={filter}
-            className={activeFilter === filter ? "is-active" : ""}
+            className={`modern-chip ${activeFilter === filter ? "is-active" : ""}`}
             onClick={() => setActiveFilter(filter)}
             type="button"
           >
@@ -1044,56 +1051,44 @@ export default function Home({ user, goTrack, onOrderPlaced, cartRequest = 0 }) 
       </div>
 
       <div className="restaurant-feed">
-        {visibleShops.map((shop) => {
+        {Object.keys(restaurantProfiles).length === 0 ? (
+          <>
+            <div className="skeleton-card"><div className="skeleton-img skeleton" /><div style={{flex: 1}}><div className="skeleton-text skeleton" /><div className="skeleton-text short skeleton" /><div className="skeleton-button skeleton" /></div></div>
+            <div className="skeleton-card"><div className="skeleton-img skeleton" /><div style={{flex: 1}}><div className="skeleton-text skeleton" /><div className="skeleton-text short skeleton" /><div className="skeleton-button skeleton" /></div></div>
+          </>
+        ) : visibleShops.map((shop) => {
           const quantity = getCartQuantity(shop.id);
           const bill = calculateBill(shop, tip, priorityMatch, Math.max(quantity, 1));
 
           return (
-            <article className={`feed-card ${shop.isOpen ? "" : "is-closed"}`} key={shop.id}>
-              <div className="feed-image-wrap">
-                <img src={shop.image} alt={shop.name} />
-                <span>{shop.offer}</span>
-              </div>
-              <div className="feed-card-body">
-                <div>
-                  <div className="feed-title-row">
-                    <h3>{shop.name}</h3>
-                    <span className="rating-pill">{shop.rating}</span>
-                  </div>
-                  <div style={{display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px'}}>
-                    <p style={{margin: 0}}>{shop.cuisine}</p>
-                    {shop.isOpen && <span className="kitchen-live-tag"><span className="live-pulse" /> Kitchen Live</span>}
-                  </div>
-                  <small>
-                    {shop.eta} - {shop.distanceKm.toFixed(1)} km - {shop.availabilityReason}
-                  </small>
-                  {MACROS[shop.item.id] && (
-                    <div className="macro-badges">
-                      <span className="macro-badge macro-p">P: {MACROS[shop.item.id].p}</span>
-                      <span className="macro-badge macro-k">K: {MACROS[shop.item.id].k}</span>
-                      <span className="macro-badge macro-c">CAL: {MACROS[shop.item.id].c}</span>
-                    </div>
-                  )}
+            <article className={`modern-card ${shop.isOpen ? "" : "is-closed"}`} key={shop.id}>
+              <img className="modern-card-image" src={shop.image} alt={shop.name} />
+              
+              <div className="modern-card-content">
+                <h3 className="modern-card-title">{shop.name}</h3>
+                <p className="modern-card-cuisine">{shop.cuisine}</p>
+                <div className="modern-card-meta">
+                  <span className="meta-rating">★ {shop.rating}</span>
+                  <span className="meta-time">{shop.eta}</span>
+                  <span className="meta-price">₹{shop.price} for one</span>
                 </div>
-                <div className="menu-order-row">
-                  <div>
-                    <strong>{shop.item.name}</strong>
-                    <span>Rs {shop.item.price}</span>
-                  </div>
-                  <QuantityControl
-                    quantity={quantity}
-                    disabled={!shop.isOpen}
-                    onDecrease={() => setShopQuantity(shop, quantity - 1)}
-                    onIncrease={() => setShopQuantity(shop, quantity + 1)}
-                  />
-                </div>
-                {quantity > 0 && (
-                  <div className="line-total">
-                    <span>{quantity} selected</span>
-                    <strong>Rs {bill.subtotal}</strong>
-                  </div>
-                )}
               </div>
+
+              {!quantity ? (
+                <button 
+                  className="modern-card-add" 
+                  onClick={() => setShopQuantity(shop, 1)}
+                  disabled={!shop.isOpen}
+                >
+                  {shop.isOpen ? "ADD" : "CLOSED"}
+                </button>
+              ) : (
+                <div className="modern-card-add added" style={{ display: 'flex', justifyContent: 'space-between', width: '80px', padding: '0 8px' }}>
+                  <span onClick={() => setShopQuantity(shop, quantity - 1)} style={{cursor: 'pointer', padding: '0 4px'}}>-</span>
+                  <span>{quantity}</span>
+                  <span onClick={() => setShopQuantity(shop, quantity + 1)} style={{cursor: 'pointer', padding: '0 4px'}}>+</span>
+                </div>
+              )}
             </article>
           );
         })}
@@ -1179,24 +1174,7 @@ export default function Home({ user, goTrack, onOrderPlaced, cartRequest = 0 }) 
         />
       )}
 
-      <nav className="bottom-nav">
-        <button className={`bottom-nav-item ${activeMode === 'food' ? 'is-active' : ''}`} onClick={() => setActiveMode('food')}>
-          <div className="bottom-nav-icon">🏠</div>
-          <span>Home</span>
-        </button>
-        <button className={`bottom-nav-item ${activeMode === 'express' ? 'is-active' : ''}`} onClick={() => setActiveMode('express')}>
-          <div className="bottom-nav-icon">⚡</div>
-          <span>Express</span>
-        </button>
-        <button className="bottom-nav-item" onClick={goTrack}>
-          <div className="bottom-nav-icon">📍</div>
-          <span>Track</span>
-        </button>
-        <button className="bottom-nav-item" onClick={() => setAddressOpen(true)}>
-          <div className="bottom-nav-icon">👤</div>
-          <span>Account</span>
-        </button>
-      </nav>
+
     </section>
   );
 }
