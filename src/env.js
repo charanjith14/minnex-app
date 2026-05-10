@@ -1,12 +1,10 @@
-const env = import.meta.env;
-
 export const appEnv = {
-  firebaseApiKey: env.REACT_APP_FIREBASE_API_KEY,
-  firebaseAuthDomain: env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-  firebaseProjectId: env.REACT_APP_FIREBASE_PROJECT_ID,
-  firebaseStorageBucket: env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-  firebaseMessagingSenderId: env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  firebaseAppId: env.REACT_APP_FIREBASE_APP_ID,
-  googleMapsApiKey: env.REACT_APP_GOOGLE_MAPS_API_KEY,
-  razorpayKeyId: env.REACT_APP_RAZORPAY_KEY_ID
+  firebaseApiKey: 'AIzaSyCmImTH606u4MSzsPy_O4NXV2aA6FkMA9Y',
+  firebaseAuthDomain: 'minnex-8a0db.firebaseapp.com',
+  firebaseProjectId: 'minnex-8a0db',
+  firebaseStorageBucket: 'minnex-8a0db.firebasestorage.app',
+  firebaseMessagingSenderId: '649089346203',
+  firebaseAppId: '1:649089346203:web:4d3c16ce012019345cb43e',
+  googleMapsApiKey: 'YOUR_ACTUAL_GOOGLE_MAPS_KEY',
+  razorpayKeyId: 'rzp_test_SkVJ1CELxAxuXB'
 };
