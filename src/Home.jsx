@@ -908,13 +908,14 @@ export default function Home({ user, goTrack, onOrderPlaced, cartRequest = 0, gl
 
         <div className={`weather-header ${weather}`}>
           <div className="hero-premium-section">
-            <span className="premium-badge">⚡ AI POWERED</span>
-            <h1>India's Smartest Delivery</h1>
-            <p>We batch orders with AI to save you 40% on delivery fees and 15 mins on every order.</p>
+            <div className="hero-glow"></div>
+            <span className="premium-badge">✨ AI-POWERED LOGISTICS</span>
+            <h1>India's Smartest <br/> Delivery Platform</h1>
+            <p>Our neural matching engine batches orders to save you <strong>40% on fees</strong> and <strong>15 mins</strong> on every delivery. Real-time, every time.</p>
             <div className="trust-badges">
-              <span className="trust-pill">🚀 22m Avg</span>
-              <span className="trust-pill">🛡️ Insured</span>
-              <span className="trust-pill">💎 Premium</span>
+              <span className="trust-pill"><i className="icon-bolt"></i> 22m Avg</span>
+              <span className="trust-pill"><i className="icon-shield"></i> Insured</span>
+              <span className="trust-pill"><i className="icon-star"></i> Gold Tier</span>
             </div>
           </div>
         </div>
@@ -934,10 +935,10 @@ export default function Home({ user, goTrack, onOrderPlaced, cartRequest = 0, gl
         )}
 
         <div className={`diet-toggle-bar ${dietMode ? 'is-active' : ''}`}>
-          <div className="diet-icon">🥗</div>
+          <div className="diet-icon">{dietMode ? '🥗' : '🥣'}</div>
           <div className="diet-info">
-            <strong>Diet Mode</strong>
-            <span>{dietMode ? 'Showing only High Protein (15g+)' : 'Personalize your nutrition'}</span>
+            <strong>{dietMode ? 'High Protein Mode Active' : 'Performance Nutrition'}</strong>
+            <span>{dietMode ? 'Only showing meals with 15g+ Protein' : 'Toggle to filter by your macros'}</span>
           </div>
           <label className="switch">
             <input type="checkbox" checked={dietMode} onChange={e => setDietMode(e.target.checked)} />
@@ -1070,8 +1071,15 @@ export default function Home({ user, goTrack, onOrderPlaced, cartRequest = 0, gl
                 <div className="modern-card-meta">
                   <span className="meta-rating">★ {shop.rating}</span>
                   <span className="meta-time">{shop.eta}</span>
-                  <span className="meta-price">₹{shop.price} for one</span>
+                  <span className="meta-price">₹{shop.price}</span>
                 </div>
+                {dietMode && MACROS[shop.item.id] && (
+                  <div className="macro-badges">
+                    <span className="macro-pill p">P: {MACROS[shop.item.id].p}</span>
+                    <span className="macro-pill k">F: {MACROS[shop.item.id].k}</span>
+                    <span className="macro-pill c">C: {MACROS[shop.item.id].c} kcal</span>
+                  </div>
+                )}
               </div>
 
               {!quantity ? (

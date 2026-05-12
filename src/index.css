@@ -574,11 +574,11 @@ img {
   animation: pulse-red 1.2s infinite;
 }
 
-.macro-badges { display: flex; gap: 6px; margin-top: 8px; }
-.macro-badge { padding: 3px 8px; border-radius: 6px; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; }
-.macro-p { background: rgba(16, 185, 129, 0.1); color: var(--mint); border: 1px solid rgba(16, 185, 129, 0.2); }
-.macro-k { background: rgba(245, 158, 11, 0.1); color: var(--gold); border: 1px solid rgba(245, 158, 11, 0.2); }
-.macro-c { background: rgba(14, 165, 233, 0.1); color: var(--aqua); border: 1px solid rgba(14, 165, 233, 0.2); }
+.macro-badges { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.macro-pill { padding: 4px 10px; border-radius: 8px; font-size: 0.7rem; font-weight: 800; border: 1px solid transparent; letter-spacing: 0.02em; }
+.macro-pill.p { background: rgba(16, 185, 129, 0.1); color: var(--mint); border-color: rgba(16, 185, 129, 0.25); }
+.macro-pill.k { background: rgba(245, 158, 11, 0.1); color: var(--gold); border-color: rgba(245, 158, 11, 0.25); }
+.macro-pill.c { background: rgba(14, 165, 233, 0.1); color: var(--aqua); border-color: rgba(14, 165, 233, 0.25); }
 
 .party-presence {
   display: flex;
@@ -995,17 +995,47 @@ textarea {
   color: var(--ink-soft);
 }
 
+.hero-premium-section { position: relative; padding: 24px 0 32px; overflow: hidden; }
+.hero-glow {
+  position: absolute;
+  top: -50px;
+  left: -50px;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, var(--coral-glow) 0%, transparent 70%);
+  filter: blur(40px);
+  z-index: -1;
+  animation: float 6s ease-in-out infinite;
+}
+.hero-premium-section h1 {
+  font-size: clamp(2.2rem, 9vw, 3.4rem);
+  font-weight: 950;
+  line-height: 0.95;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.hero-premium-section p {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  max-width: 90%;
+  margin-bottom: 24px;
+}
+.hero-premium-section p strong { color: var(--coral); }
 .premium-badge {
   display: inline-block;
-  padding: 4px 10px;
-  border-radius: 6px;
-  background: linear-gradient(135deg, var(--coral), var(--gold));
-  color: white;
-  font-size: 0.65rem;
+  padding: 6px 12px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--gold);
+  font-size: 0.7rem;
   font-weight: 900;
-  letter-spacing: 0.05em;
-  margin-bottom: 12px;
-  animation: float 3s ease-in-out infinite;
+  letter-spacing: 0.1em;
+  margin-bottom: 16px;
+  backdrop-filter: blur(10px);
 }
 
 /* Mobile Bottom Navigation */
