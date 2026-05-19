@@ -5,7 +5,8 @@ import {
 } from 'react-native';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebase/config';
-import { COLORS } from '../constants';
+import { COLORS, SHADOWS } from '../constants';
+import { triggerHaptic } from '../utils/haptics';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -14,7 +15,9 @@ export default function LoginScreen() {
   const [isSignup, setIsSignup] = useState(false);
 
   const handleAuth = async () => {
+    triggerHaptic('impactMedium');
     if (!email.trim() || !password.trim()) {
+      triggerHaptic('notificationError');
       Alert.alert('Missing fields', 'Please enter email and password.');
       return;
     }
@@ -25,58 +28,71 @@ export default function LoginScreen() {
       } else {
         await signInWithEmailAndPassword(auth, email.trim(), password.trim());
       }
+      triggerHaptic('notificationSuccess');
     } catch (err) {
+      triggerHaptic('notificationError');
       Alert.alert('Error', err.message || 'Authentication failed.');
     } finally {
       setLoading(false);
     }
   };
 
+  const toggleMode = () => {
+    triggerHaptic('impactLight');
+    setIsSignup(!isSignup);
+  };
+
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <View style={styles.logoBox}>
+        
+        {/* Premium Brand Header */}
+        <View style={styles.brandBox}>
           <View style={styles.logoMark}>
             <Text style={styles.logoLetter}>M</Text>
           </View>
-          <Text style={styles.logoWord}>MINNEX</Text>
-          <Text style={styles.tagline}>India's Smart Delivery Network</Text>
+          <Text style={styles.brandName}>MINNEX</Text>
+          <Text style={styles.tagline}>Elevated Delivery Experience</Text>
         </View>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{isSignup ? 'Create Account' : 'Welcome back'}</Text>
-          <Text style={styles.cardSub}>Fresh orders. Live movement. One clean checkout.</Text>
+          <Text style={styles.cardSub}>Sign in to access your curated dashboard.</Text>
 
-          <Text style={styles.label}>Email</Text>
-          <TextInput
-            style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-            placeholder="you@email.com"
-            placeholderTextColor={COLORS.textSecondary}
-            autoCapitalize="none"
-            keyboardType="email-address"
-          />
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Email Address</Text>
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="you@example.com"
+              placeholderTextColor={COLORS.textMuted}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+          </View>
 
-          <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            placeholder="••••••••"
-            placeholderTextColor={COLORS.textSecondary}
-            secureTextEntry
-          />
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Password</Text>
+            <TextInput
+              style={styles.input}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="••••••••"
+              placeholderTextColor={COLORS.textMuted}
+              secureTextEntry
+            />
+          </View>
 
           <TouchableOpacity style={styles.btn} onPress={handleAuth} disabled={loading}>
             {loading ? <ActivityIndicator color="#fff" /> : (
-              <Text style={styles.btnText}>{isSignup ? 'Sign Up' : 'Sign In'}</Text>
+              <Text style={styles.btnText}>{isSignup ? 'Create Account' : 'Sign In'}</Text>
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => setIsSignup(!isSignup)} style={styles.toggle}>
+          <TouchableOpacity onPress={toggleMode} style={styles.toggle}>
             <Text style={styles.toggleText}>
-              {isSignup ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+              {isSignup ? 'Already have an account? Sign In' : "New to Minnex? Sign Up"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -87,33 +103,37 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.bg },
-  scroll: { flexGrow: 1, justifyContent: 'center', padding: 20 },
-  logoBox: { alignItems: 'center', marginBottom: 32 },
+  scroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
+  brandBox: { alignItems: 'center', marginBottom: 48 },
   logoMark: {
-    width: 72, height: 72, borderRadius: 22,
+    width: 64, height: 64, borderRadius: 20,
     backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
+    ...SHADOWS.soft,
   },
-  logoLetter: { fontSize: 36, fontWeight: '900', color: '#fff' },
-  logoWord: { fontSize: 28, fontWeight: '900', color: COLORS.text, letterSpacing: 4 },
-  tagline: { fontSize: 13, color: COLORS.textSecondary, marginTop: 4, textAlign: 'center' },
+  logoLetter: { fontSize: 32, fontWeight: '900', color: '#fff' },
+  brandName: { fontSize: 26, fontWeight: '900', color: COLORS.primary, letterSpacing: 2 },
+  tagline: { fontSize: 15, color: COLORS.textSecondary, marginTop: 4, fontWeight: '500' },
   card: {
-    backgroundColor: COLORS.surface, borderRadius: 20, padding: 24,
+    backgroundColor: COLORS.surface, borderRadius: 32, padding: 32,
+    borderWidth: 1, borderColor: COLORS.border,
+    ...SHADOWS.soft,
+  },
+  cardTitle: { fontSize: 26, fontWeight: '900', color: COLORS.primary, marginBottom: 8, letterSpacing: -0.5 },
+  cardSub: { fontSize: 15, color: COLORS.textSecondary, marginBottom: 32, fontWeight: '500' },
+  inputGroup: { marginBottom: 20 },
+  label: { fontSize: 14, fontWeight: '700', color: COLORS.primary, marginBottom: 8, letterSpacing: 0.5 },
+  input: {
+    backgroundColor: COLORS.bg, color: COLORS.primary, borderRadius: 16,
+    paddingHorizontal: 20, paddingVertical: 18, fontSize: 17, fontWeight: '500',
     borderWidth: 1, borderColor: COLORS.border,
   },
-  cardTitle: { fontSize: 22, fontWeight: '800', color: COLORS.text, marginBottom: 4 },
-  cardSub: { fontSize: 13, color: COLORS.textSecondary, marginBottom: 24 },
-  label: { fontSize: 12, fontWeight: '700', color: COLORS.textSecondary, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 },
-  input: {
-    backgroundColor: COLORS.surfaceAlt, color: COLORS.text, borderRadius: 12,
-    paddingHorizontal: 16, paddingVertical: 14, fontSize: 15,
-    borderWidth: 1, borderColor: COLORS.border, marginBottom: 16,
-  },
   btn: {
-    backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 16,
-    alignItems: 'center', marginTop: 8,
+    backgroundColor: COLORS.primary, borderRadius: 16, paddingVertical: 18,
+    alignItems: 'center', marginTop: 12,
+    ...SHADOWS.soft,
   },
-  btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  toggle: { marginTop: 16, alignItems: 'center' },
-  toggleText: { color: COLORS.primary, fontSize: 14, fontWeight: '600' },
+  btnText: { color: '#fff', fontSize: 17, fontWeight: '800', letterSpacing: 0.5 },
+  toggle: { marginTop: 24, alignItems: 'center' },
+  toggleText: { color: COLORS.textSecondary, fontSize: 15, fontWeight: '600' },
 });

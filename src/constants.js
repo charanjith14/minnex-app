@@ -47,15 +47,40 @@ export const SHOPS = [
 export const FILTERS = ['All', 'Rating 4.5+', 'Under ₹150', 'Fast (< 25 min)', 'Pure veg'];
 
 export const COLORS = {
-  bg: '#0f0f14',
-  surface: '#1a1a24',
-  surfaceAlt: '#23232f',
-  border: 'rgba(255,255,255,0.08)',
-  primary: '#ff5a1f',
-  primaryLight: 'rgba(255,90,31,0.15)',
-  text: '#f8fafc',
-  textSecondary: '#94a3b8',
-  green: '#22c55e',
-  purple: '#8b5cf6',
-  amber: '#f59e0b',
+  bg: '#f7f8fb', // Soft off-white for a cleaner look
+  surface: '#ffffff',
+  surfaceAlt: '#f0f2f5',
+  border: '#eaebf0',
+  primary: '#101010', // Extremely modern dark tone as primary
+  primaryLight: 'rgba(16,16,16,0.05)',
+  text: '#111111',
+  textSecondary: '#555861', // Darkened for better contrast
+  textMuted: '#7a7d87', // Darkened for better contrast
+  green: '#1ab563',
+  greenLight: '#e4faed',
+  purple: '#6b4ce6',
+  amber: '#f5a623',
+  zeptoPurple: '#9c33ff', // Keep brand purple
+  zeptoPurpleLight: 'rgba(156, 51, 255, 0.08)',
+  cardBg: '#ffffff',
+  cardText: '#101010',
+  cardTextSecondary: '#71747d',
+  overlay: 'rgba(0,0,0,0.4)',
+};
+
+export const SHADOWS = {
+  soft: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  floating: {
+    shadowColor: '#9c33ff',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 10,
+  }
 };
