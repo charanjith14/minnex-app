@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { collection, onSnapshot, query } from "firebase/firestore";
 import { appEnv } from "./env";
 import { db } from "./firebase/config";
@@ -772,7 +772,7 @@ export default function Home({ user, goTrack, onOrderPlaced, cartRequest = 0, gl
     setMessage("");
   };
 
-  const openCartReview = () => {
+  const openCartReview = useCallback(() => {
     if (!cartShop) {
       setMessage("Add food to cart first.");
       return;
@@ -785,7 +785,7 @@ export default function Home({ user, goTrack, onOrderPlaced, cartRequest = 0, gl
     }
 
     setReviewShopId(cartShop.id);
-  };
+  }, [cartShop, deliveryDetails.address, deliveryDetails.phone]);
 
   const openContactBot = () => {
     setMenuOpen(false);
@@ -816,7 +816,7 @@ export default function Home({ user, goTrack, onOrderPlaced, cartRequest = 0, gl
   useEffect(() => {
     if (!cartRequest) return;
     openCartReview();
-  }, [cartRequest]);
+  }, [cartRequest, openCartReview]);
 
   const openCheckoutReview = (shop) => {
     if (!shop.isOpen) {
