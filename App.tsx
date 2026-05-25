@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './src/firebase/config';
 import LoginScreen from './src/screens/LoginScreen';
@@ -47,9 +49,9 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer>
+    <GestureHandlerRootView style={{ flex: 1 }}><SafeAreaProvider><NavigationContainer>
       {user ? <AppNavigator user={user} /> : <LoginScreen />}
-    </NavigationContainer>
+    </NavigationContainer></SafeAreaProvider></GestureHandlerRootView>
   );
 }
 
