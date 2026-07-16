@@ -1,27 +1,38 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Text, View } from 'react-native';
 import HomeScreen from '../screens/HomeScreen';
+import CartScreen from '../screens/CartScreen';
 import OrdersScreen from '../screens/OrdersScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import { COLORS } from '../constants';
 
 const Tab = createBottomTabNavigator();
+const HomeStack = createNativeStackNavigator();
 
-function Icon({ label, focused }) {
-  const icons = { 
-    Home: '🏠', 
-    Categories: '🔳', 
-    'Buy Again': '🛍️', 
-    Fresh: '🥦', 
-    Live: '📺' 
-  };
+const TAB_ICONS = {
+  Home: '🏠',
+  Orders: '📦',
+  Profile: '👤',
+};
+
+function HomeTabStack({ user }) {
   return (
-    <View style={{ alignItems: 'center' }}>
-      <Text style={{ fontSize: 20, color: focused ? COLORS.primary : COLORS.textSecondary }}>
-        {icons[label]}
-      </Text>
-    </View>
+    <HomeStack.Navigator screenOptions={{ headerShown: false }}>
+      <HomeStack.Screen name="HomeMain">
+        {props => <HomeScreen {...props} user={user} />}
+      </HomeStack.Screen>
+      <HomeStack.Screen
+        name="Cart"
+        options={{
+          presentation: 'modal',
+          animation: 'slide_from_bottom',
+        }}
+      >
+        {props => <CartScreen {...props} user={user} />}
+      </HomeStack.Screen>
+    </HomeStack.Navigator>
   );
 }
 
@@ -29,33 +40,43 @@ export default function AppNavigator({ user }) {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused }) => <Icon label={route.name} focused={focused} />,
+        tabBarIcon: ({ focused }) => (
+          <View style={{ alignItems: 'center' }}>
+            <Text
+              style={{
+                fontSize: 21,
+                color: focused ? COLORS.zeptoPurple : COLORS.textMuted,
+              }}
+            >
+              {TAB_ICONS[route.name]}
+            </Text>
+          </View>
+        ),
         tabBarStyle: {
-          backgroundColor: '#fff',
-          borderTopColor: '#eee',
+          backgroundColor: COLORS.surface,
+          borderTopColor: COLORS.border,
           borderTopWidth: 1,
           paddingBottom: 8,
-          height: 64,
+          paddingTop: 4,
+          height: 68,
         },
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: '#999',
-        tabBarLabelStyle: { fontSize: 10, fontWeight: '700', marginBottom: 4 },
-        headerShown: false, // Use custom headers in screens
+        tabBarActiveTintColor: COLORS.zeptoPurple,
+        tabBarInactiveTintColor: COLORS.textMuted,
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '700',
+          marginBottom: 4,
+        },
+        headerShown: false,
       })}
     >
       <Tab.Screen name="Home">
-        {() => <HomeScreen user={user} />}
+        {() => <HomeTabStack user={user} />}
       </Tab.Screen>
-      <Tab.Screen name="Categories">
-        {() => <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><Text>Categories Screen</Text></View>}
+      <Tab.Screen name="Orders">
+        {() => <OrdersScreen user={user} />}
       </Tab.Screen>
-      <Tab.Screen name="Buy Again">
-        {() => <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><Text>Buy Again Screen</Text></View>}
-      </Tab.Screen>
-      <Tab.Screen name="Fresh">
-        {() => <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><Text>Fresh Screen</Text></View>}
-      </Tab.Screen>
-      <Tab.Screen name="Live">
+      <Tab.Screen name="Profile">
         {() => <ProfileScreen user={user} />}
       </Tab.Screen>
     </Tab.Navigator>

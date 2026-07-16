@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import {
   View, Text, TextInput, FlatList, TouchableOpacity,
-  StyleSheet, ScrollView, Image, Alert, RefreshControl,
+  StyleSheet, ScrollView, Image, RefreshControl,
 } from 'react-native';
 import { COLORS, SHOPS, FILTERS, SHADOWS } from '../constants';
 import Header from '../components/Header';
@@ -9,7 +9,7 @@ import { triggerHaptic } from '../utils/haptics';
 
 const INITIAL_CART = {};
 
-export default function HomeScreen({ user }) {
+export default function HomeScreen({ user, navigation }) {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const [cart, setCart] = useState(INITIAL_CART); 
@@ -144,7 +144,7 @@ export default function HomeScreen({ user }) {
       <Header 
         user={user} 
         balance={0} 
-        onProfilePress={() => Alert.alert('Profile', 'Navigate to profile tab.')} 
+        onProfilePress={() => navigation.getParent()?.navigate('Profile')} 
       />
       
       <View style={styles.searchContainer}>
@@ -212,7 +212,13 @@ export default function HomeScreen({ user }) {
             style={styles.cartBar}
             onPress={() => {
               triggerHaptic('impactHeavy');
-              Alert.alert('Cart', `${cartCount} items · ₹${cartTotal}\n\nOrder flow coming soon!`);
+              const cartItems = Object.entries(cart)
+                .map(([shopId, qty]) => {
+                  const shop = SHOPS.find(s => s.id === shopId);
+                  return shop ? { shop, qty } : null;
+                })
+                .filter(Boolean);
+              navigation.navigate('Cart', { cartItems });
             }}
           >
             <View style={styles.cartLeft}>
