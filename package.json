@@ -21,6 +21,7 @@
     "react-native-gesture-handler": "^2.31.2",
     "react-native-get-random-values": "^2.0.0",
     "react-native-haptic-feedback": "^3.0.0",
+    "react-native-reanimated": "^3.19.5",
     "react-native-safe-area-context": "^5.7.0",
     "react-native-screens": "^4.24.0"
   },
