@@ -1,19 +1,28 @@
-/* Swiggy/Zomato Style Premium Variables & Layout */
+/* Gen Z Cyberpunk / Neon Theme Variables */
 :root {
-  --swiggy-orange: #fc8019;
-  --zomato-red: #e23744;
-  --premium-card-bg: #1c1c24; /* Darker, sleek background for cards */
-  --premium-surface: #2d2d3a;
+  --neon-pink: #ff2a75;
+  --neon-cyan: #00f3ff;
+  --neon-purple: #b53cff;
+  --premium-card-bg: rgba(18, 18, 24, 0.65); /* Glassmorphism base */
+  --premium-surface: rgba(30, 30, 42, 0.75);
   --text-primary: #ffffff;
   --text-secondary: #9ca3af;
   --border-subtle: rgba(255, 255, 255, 0.08);
-  --shadow-card: 0 8px 24px rgba(0,0,0,0.4);
-  --bottom-nav-height: 64px;
+  --border-neon: rgba(0, 243, 255, 0.3);
+  --shadow-card: 0 12px 32px rgba(0,0,0,0.6);
+  --shadow-neon: 0 0 20px rgba(255, 42, 117, 0.2);
+  --bottom-nav-height: 72px;
+  --glass-blur: blur(24px);
 }
 
 html, body {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
+  background-color: #050505;
+  background-image: 
+    radial-gradient(circle at 15% 50%, rgba(255, 42, 117, 0.08), transparent 40%),
+    radial-gradient(circle at 85% 30%, rgba(0, 243, 255, 0.08), transparent 40%);
+  background-attachment: fixed;
 }
 
 /* Base structural adjustments for Bottom Nav */
@@ -90,22 +99,24 @@ button:active, .modern-card:active {
   color: var(--text-secondary);
 }
 
-/* Bottom Navigation Bar */
+/* Bottom Navigation Bar (Glassmorphic Dock) */
 .bottom-nav-bar {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: calc(var(--bottom-nav-height) + var(--safe-bottom));
-  background: rgba(2, 6, 23, 0.98);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid var(--border-subtle);
+  bottom: 24px;
+  left: 16px;
+  right: 16px;
+  height: var(--bottom-nav-height);
+  background: rgba(18, 18, 24, 0.5);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border-neon);
+  border-radius: 36px;
   display: flex;
   justify-content: space-around;
   align-items: center;
-  padding-bottom: var(--safe-bottom);
+  padding: 0 8px;
   z-index: 1000;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1);
 }
 
 .nav-item {
@@ -121,15 +132,23 @@ button:active, .modern-card:active {
   border: none;
   min-width: 64px;
   min-height: 48px; /* Touch target */
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .nav-item.is-active {
-  color: var(--swiggy-orange);
+  color: var(--neon-cyan);
+  transform: translateY(-4px);
+  text-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
 }
 
 .nav-icon {
-  font-size: 1.4rem;
+  font-size: 1.5rem;
   margin-bottom: 2px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+}
+
+.nav-item.is-active .nav-icon {
+  filter: drop-shadow(0 0 8px var(--neon-cyan));
 }
 
 /* Horizontal Chips */
@@ -162,9 +181,10 @@ button:active, .modern-card:active {
 }
 
 .modern-chip.is-active {
-  background: rgba(252, 128, 25, 0.15);
-  border-color: var(--swiggy-orange);
-  color: var(--swiggy-orange);
+  background: rgba(255, 42, 117, 0.15);
+  border-color: var(--neon-pink);
+  color: var(--neon-pink);
+  box-shadow: var(--shadow-neon);
 }
 
 /* Modern Card Layout */
@@ -180,6 +200,8 @@ button:active, .modern-card:active {
   border: 1px solid var(--border-subtle);
   margin-bottom: 16px;
   position: relative;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .modern-card-image {
@@ -188,7 +210,7 @@ button:active, .modern-card:active {
   border-radius: 12px;
   object-fit: cover;
   flex-shrink: 0;
-  background: #2a2a35;
+  background: #111;
 }
 
 .modern-card-content {
@@ -220,7 +242,7 @@ button:active, .modern-card:active {
 }
 
 .meta-rating {
-  color: var(--mint);
+  color: var(--neon-cyan);
   display: flex;
   align-items: center;
   gap: 4px;
@@ -236,22 +258,27 @@ button:active, .modern-card:active {
   right: 12px;
   min-width: 80px;
   min-height: 36px;
-  background: rgba(252, 128, 25, 0.15);
-  color: var(--swiggy-orange);
-  border: 1px solid var(--swiggy-orange);
-  border-radius: 8px;
+  background: rgba(0, 243, 255, 0.15);
+  color: var(--neon-cyan);
+  border: 1px solid var(--neon-cyan);
+  border-radius: 12px;
   font-weight: 800;
   text-transform: uppercase;
   font-size: 0.85rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(252, 128, 25, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 243, 255, 0.2);
+  transition: all 0.2s;
+}
+
+.modern-card-add:active {
+  transform: scale(0.9);
 }
 
 .modern-card-add.added {
-  background: var(--swiggy-orange);
-  color: white;
+  background: var(--neon-cyan);
+  color: #000;
 }
 
 /* Skeleton Loaders */
