@@ -343,3 +343,90 @@ button:active, .modern-card:active {
   margin-top: auto;
   align-self: flex-end;
 }
+
+/* Responsive Web / Desktop Mode */
+@media (min-width: 768px) {
+  /* Restrain the app shell to look like a desktop web app */
+  .app-shell {
+    padding-top: 80px; /* Space for the top bar */
+    padding-bottom: 24px !important; /* No bottom nav */
+  }
+
+  /* Transform top bar into a desktop header */
+  .top-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    height: 80px;
+    padding: 0 40px !important;
+    background: rgba(10, 10, 15, 0.9) !important;
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    border-bottom: 1px solid var(--border-neon);
+  }
+
+  .top-bar-location {
+    width: auto;
+    font-size: 1.2rem;
+  }
+
+  .top-bar-search {
+    max-width: 500px;
+    margin: 0 auto;
+  }
+
+  /* Transform Bottom Nav into a Desktop Header Nav */
+  .bottom-nav-bar {
+    position: fixed;
+    top: 0;
+    bottom: auto;
+    left: auto;
+    right: 40px;
+    height: 80px;
+    width: auto;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    display: flex;
+    gap: 32px;
+    padding: 0;
+  }
+
+  .nav-item {
+    flex-direction: row;
+    gap: 12px;
+    font-size: 1.05rem;
+    color: var(--text-primary);
+  }
+
+  .nav-item.is-active {
+    transform: none;
+  }
+
+  /* Make cards flow into a grid */
+  .modern-card {
+    display: inline-flex;
+    width: calc(33.333% - 16px);
+    margin: 8px;
+    vertical-align: top;
+    height: 140px; /* consistent height */
+  }
+
+  /* For large screens, expand grid */
+  @media (min-width: 1200px) {
+    .modern-card {
+      width: calc(25% - 16px);
+    }
+  }
+
+  /* Fix splash screen for desktop */
+  .splash-screen {
+    background-size: cover;
+  }
+}
